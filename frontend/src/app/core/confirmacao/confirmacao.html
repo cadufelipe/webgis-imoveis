@@ -1,0 +1,10 @@
+<dialog #dialogo class="confirmacao" (cancel)="cancelar()">
+  <p class="confirmacao__pergunta">{{ pergunta() }}</p>
+
+  <div class="confirmacao__acoes">
+    <button type="button" class="botao" (click)="cancelar()">Cancelar</button>
+    <button type="button" class="botao botao--primario" (click)="confirmar()">
+      {{ rotuloConfirmar() }}
+    </button>
+  </div>
+</dialog>

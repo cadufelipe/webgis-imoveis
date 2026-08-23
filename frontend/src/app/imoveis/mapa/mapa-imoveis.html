@@ -1,0 +1,98 @@
+<div class="cabecalho">
+  <h2>Mapa dos imóveis</h2>
+  <a class="botao" routerLink="/imoveis">Ver listagem</a>
+</div>
+
+@if (store.erro(); as erro) {
+  <div class="estado estado--erro" role="alert">
+    {{ erro }}
+    <button type="button" class="botao" (click)="store.carregar()">Tentar novamente</button>
+  </div>
+}
+
+<!-- Sem este aviso, o mapa desenharia 500 pontos de um cadastro com milhares
+     e ninguém saberia do recorte. -->
+@if (store.truncado()) {
+  <p class="estado estado--aviso" role="status">
+    Mostrando {{ store.pontos().length }} dos {{ store.total() | number }} imóveis que
+    atendem ao filtro. Refine a busca para ver os demais.
+  </p>
+}
+
+<div class="mapa-layout">
+  <!--
+    Sempre no DOM, fora de qualquer @if: o Leaflet guarda uma referência a este
+    elemento na montagem, e um bloco condicional que o recriasse deixaria o
+    mapa apontando para um nó que não está mais na página.
+  -->
+  <div #recipiente class="mapa" role="application"
+       aria-label="Mapa com a localização dos imóveis cadastrados"></div>
+
+  <aside class="painel" aria-labelledby="painel-titulo">
+    <h3 id="painel-titulo" class="painel__titulo">O que mostrar</h3>
+
+    <form [formGroup]="filtroForm" (ngSubmit)="$event.preventDefault()">
+      <div class="painel__campo">
+        <label for="mapa-filtro-uf">Estado</label>
+        <select id="mapa-filtro-uf" formControlName="uf">
+          <option value="">Todos os estados</option>
+          @for (uf of localidades.ufs(); track uf.sigla) {
+            <option [value]="uf.sigla">{{ uf.sigla }} — {{ uf.nome }} ({{ uf.quantidadeDeImoveis }})</option>
+          }
+        </select>
+      </div>
+
+      <!-- Desabilitada sem estado escolhido: a lista vem sempre de uma UF. -->
+      <div class="painel__campo">
+        <label for="mapa-filtro-municipio">Cidade</label>
+        <select id="mapa-filtro-municipio" formControlName="municipio">
+          <option value="">
+            {{ filtroForm.controls.uf.value.length === 0 ? 'Escolha um estado' : 'Todas as cidades' }}
+          </option>
+          @for (municipio of localidades.municipios(); track municipio.nome) {
+            <option [value]="municipio.nome">
+              {{ municipio.nome }} ({{ municipio.quantidadeDeImoveis }})
+            </option>
+          }
+        </select>
+      </div>
+
+      <div class="painel__campo">
+        <label for="mapa-filtro-proprietario">Proprietário</label>
+        <input id="mapa-filtro-proprietario" type="search" formControlName="proprietario"
+               placeholder="Nome ou sobrenome" autocomplete="off">
+      </div>
+
+      @if (store.temFiltroAtivo()) {
+        <button type="button" class="botao painel__limpar" (click)="limparFiltros()">
+          Limpar filtros
+        </button>
+      }
+    </form>
+
+    @if (localidades.erro(); as erro) {
+      <p class="painel__erro" role="alert">{{ erro }}</p>
+    }
+
+    <hr class="painel__divisor">
+
+    <p class="painel__contagem" role="status">
+      @if (store.carregando()) {
+        Carregando…
+      } @else if (store.pontos().length === 0) {
+        @if (store.temFiltroAtivo()) {
+          Nenhum imóvel para esse filtro.
+        } @else {
+          Nenhum imóvel cadastrado ainda.
+        }
+      } @else {
+        <strong>{{ store.pontos().length }}</strong> imóvel(is) no mapa
+      }
+    </p>
+
+    <div class="legenda">
+      <span class="legenda__item"><i class="legenda__ponto legenda__ponto--ativo"></i>Ativo</span>
+      <span class="legenda__item"><i class="legenda__ponto legenda__ponto--inativo"></i>Inativo</span>
+    </div>
+  </aside>
+</div>

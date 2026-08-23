@@ -1,0 +1,15 @@
+<nav class="trilha">
+  <a routerLink="/imoveis">Imóveis</a> <span aria-hidden="true">/</span> <span>Novo</span>
+</nav>
+
+<h2>Novo imóvel</h2>
+
+@if (erro(); as texto) {
+  <p class="estado estado--erro" role="alert">{{ texto }}</p>
+}
+
+<app-imovel-formulario
+  rotuloAcao="Cadastrar"
+  [salvando]="salvando()"
+  (salvar)="salvar($event)"
+  (cancelar)="voltar()" />

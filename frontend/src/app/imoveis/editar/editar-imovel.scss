@@ -1,0 +1,7 @@
+// Só o que é específico desta página; o restante vem de src/styles.scss.
+
+// O "Voltar para a listagem" aparece solto abaixo da mensagem de erro: o
+// .botao global não tem margem, por não presumir contexto.
+.botao {
+  margin-top: 14px;
+}

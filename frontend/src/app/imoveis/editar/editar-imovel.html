@@ -1,0 +1,24 @@
+<nav class="trilha">
+  <a routerLink="/imoveis">Imóveis</a> <span aria-hidden="true">/</span> <span>Editar</span>
+</nav>
+
+<h2>Editar imóvel</h2>
+
+@if (carregando()) {
+  <p class="estado" role="status">Carregando imóvel…</p>
+}
+
+@if (erro(); as texto) {
+  <p class="estado estado--erro" role="alert">{{ texto }}</p>
+}
+
+@if (imovel(); as carregado) {
+  <app-imovel-formulario
+    rotuloAcao="Salvar alterações"
+    [imovel]="carregado"
+    [salvando]="salvando()"
+    (salvar)="salvar($event)"
+    (cancelar)="voltar()" />
+} @else if (!carregando()) {
+  <a class="botao" routerLink="/imoveis">Voltar para a listagem</a>
+}

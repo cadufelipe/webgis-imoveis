@@ -1,14 +1,71 @@
+// Faixa de tinta cheia, mas com o conteúdo na mesma medida do miolo: sem isso
+// o wordmark encosta na janela enquanto a página respeita 1100px.
 .topo {
-  background: #34495e;
-  color: #fff;
-  padding: 12px 20px;
+  background: var(--cor-marca);
+  color: var(--cor-marca-contraste);
+  box-shadow: inset 0 -1px 0 rgb(255 255 255 / 0.1);
 }
 
+.topo__interno {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 14px 20px;
+}
+
+// Serifada, e só aqui: é o único ponto da interface onde a família muda, o que
+// separa o nome do sistema dos itens de menu ao lado.
 .topo h1 {
   margin: 0;
-  font-size: 20px;
+  font-family: var(--fonte-titulo);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.menu__item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 5px 14px;
+  border-radius: var(--raio-pilula);
+  color: var(--cor-marca-texto-suave);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.menu__item:hover {
+  background: var(--cor-marca-hover);
+  color: var(--cor-marca-contraste);
+}
+
+// A página atual inverte: pastilha de papel sobre a tinta. Não depende de cor,
+// então sobrevive ao daltonismo e ao print em preto e branco.
+.menu__item--ativo,
+.menu__item--ativo:hover {
+  background: var(--cor-marca-contraste);
+  color: var(--cor-marca);
+}
+
+.menu__item:focus-visible {
+  outline: 2px solid var(--cor-marca-contraste);
+  outline-offset: 2px;
 }
 
 .conteudo {
-  padding: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
 }

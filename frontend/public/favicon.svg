@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Casa">
+  <rect width="32" height="32" rx="7" fill="#123f38"/>
+  <g fill="#f6f4ef" stroke="#f6f4ef" stroke-width="2.2" stroke-linejoin="round">
+    <path d="M16 6 27.4 15.2 4.6 15.2Z"/>
+    <path d="M7.6 15.2H24.4V25.6H7.6Z"/>
+  </g>
+  <path d="M13.2 26.7V21.9a2.8 2.8 0 0 1 5.6 0v4.8Z" fill="#b4552f"/>
+</svg>

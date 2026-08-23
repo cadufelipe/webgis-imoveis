@@ -1,0 +1,15 @@
+// Só o que é específico desta página; o restante vem de src/styles.scss.
+
+.resumo__tamanho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+// Delta sobre o select global: controle acessório, menor que os de formulário.
+.resumo__tamanho select {
+  padding: 4px 8px;
+  font-size: 12px;
+}

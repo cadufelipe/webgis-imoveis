@@ -1,0 +1,149 @@
+// `1fr` para o mapa e largura fixa para o painel, e não duas frações: o painel
+// tem conteúdo previsível e não ganha nada em esticar, enquanto cada pixel a
+// mais no mapa mostra mais área.
+.mapa-layout {
+  display: grid;
+  grid-template-columns: 1fr 272px;
+  gap: 16px;
+  align-items: start;
+}
+
+// Abaixo de 900px as duas colunas não cabem sem espremer o mapa.
+@media (max-width: 900px) {
+  .mapa-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .painel {
+    order: -1;
+  }
+}
+
+// Altura explícita não é escolha estética: o Leaflet mede o contêiner na
+// montagem para saber quantos tiles pedir. Com altura automática o elemento
+// nasce com 0px, o mapa calcula que nada é visível e a tela fica em branco —
+// sem erro no console.
+//
+// `overflow: hidden` porque os tiles são retangulares e passariam por cima do
+// canto arredondado; sem ele o raio existe na borda e não no conteúdo.
+.mapa {
+  height: 64vh;
+  min-height: 380px;
+  overflow: hidden;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra-1);
+}
+
+// --- Painel -----------------------------------------------------------------
+
+.painel {
+  padding: 16px;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-1);
+}
+
+.painel__titulo {
+  margin: 0 0 16px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+.painel__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.painel__campo label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+// `width: 100%` com `min-width: 0` porque select não encolhe sozinho: sem isso,
+// um nome de cidade longo estica a coluna inteira e come a largura do mapa.
+.painel__campo select,
+.painel__campo input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.painel__campo select:disabled {
+  background: var(--cor-superficie-marcada);
+  color: var(--cor-texto-apagado);
+  cursor: not-allowed;
+}
+
+.painel__limpar {
+  width: 100%;
+}
+
+.painel__erro {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--cor-erro-campo);
+}
+
+.painel__divisor {
+  margin: 16px 0;
+  border: 0;
+  border-top: 1px solid var(--cor-borda-suave);
+}
+
+.painel__contagem {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+.painel__contagem strong {
+  font-family: var(--fonte-mono);
+  font-size: 15px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--cor-texto);
+}
+
+// --- Legenda ----------------------------------------------------------------
+
+.legenda {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+.legenda__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+// As mesmas duas cores que o componente passa ao Leaflet, lidas da mesma
+// paleta. Se a legenda e os pontos discordarem, a legenda mente.
+.legenda__ponto {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--cor-superficie);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--cor-borda);
+}
+
+.legenda__ponto--ativo {
+  background: var(--cor-acento);
+}
+
+.legenda__ponto--inativo {
+  background: var(--cor-texto-apagado);
+}

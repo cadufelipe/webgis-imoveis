@@ -1,0 +1,15 @@
+-- Sustenta o filtro por estado do mapa (WHERE uf = 'SP').
+--
+-- A cardinalidade e baixa de proposito conhecido: sao no maximo 27 valores, e
+-- com a base distribuida cada UF responde por uma fatia grande demais para o
+-- planejador preferir o indice sozinho. Ele nao entra aqui esperando ganho no
+-- filtro de UF isolado.
+--
+-- Entra pelo caso que a tela realmente produz: UF **combinada** com municipio ou
+-- proprietario. Ai o Postgres pode cruzar este indice com o GIN de trigramas do
+-- V3 por bitmap AND, e o conjunto lido cai bastante. E, na consulta que monta o
+-- select de estados (GROUP BY uf), permite percorrer o indice em vez da tabela.
+--
+-- Custo: alguns MB em 200 mil linhas. Se a medicao futura mostrar que o
+-- planejador o ignora em todos os caminhos, remover e' uma migration de uma linha.
+CREATE INDEX idx_imovel_uf ON imovel (uf);

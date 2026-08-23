@@ -1,7 +1,543 @@
+// Estilos globais: o vocabulário visual compartilhado pelas páginas.
+// Componentes só declaram o que é específico deles.
+
+/**
+ * Custom properties do CSS, e não variáveis do Sass: as do Sass somem na
+ * compilação. O mapa depende disso — o Leaflet desenha em canvas e lê estas
+ * cores por `getComputedStyle`, então a cor do marcador vem daqui e não de um
+ * hexadecimal solto no componente.
+ */
+:root {
+  // Superfícies — papel morno, não cinza de sistema
+  --cor-fundo: #f3f1ec;
+  --cor-superficie: #fdfcfa;
+  --cor-superficie-suave: #f8f6f1;
+  --cor-superficie-marcada: #eceae3;
+
+  // Texto
+  --cor-texto: #1f2422;
+  --cor-texto-suave: #4a5350;
+  --cor-texto-fraco: #626d69;
+  /**
+   * Token **não textual**. Reservado para bolinha de legenda, marcador inativo
+   * no mapa e controle desabilitado — casos em que a WCAG não exige contraste.
+   * Sobre papel ele dá 2,5:1, então texto de leitura nunca usa este valor: quem
+   * precisa parecer apagado e continuar legível usa `--cor-texto-fraco`.
+   */
+  --cor-texto-apagado: #9aa39f;
+
+  // Bordas
+  --cor-borda: #d9d4ca;
+  --cor-borda-suave: #e7e2d9;
+
+  // Marca
+  --cor-marca: #123f38;
+  --cor-marca-contraste: #f6f4ef;
+  --cor-marca-texto-suave: #b9cbc6;
+  --cor-marca-hover: rgb(255 255 255 / 0.12);
+  --cor-marca-ativo: rgb(255 255 255 / 0.2);
+  --cor-marca-halo: rgb(18 63 56 / 0.14);
+
+  // Acento. Reservado ao que localiza: o ponto no mapa e a página em que se está.
+  --cor-acento: #b4552f;
+
+  // Estados
+  --cor-estado-fundo: #eceae3;
+  --cor-erro-fundo: #fbeae5;
+  --cor-erro-texto: #8c2f1b;
+  // Quase igual ao de cima; a diferença nunca foi decisão de ninguém.
+  // Fica visível aqui para ser unificado quando alguém decidir a paleta.
+  --cor-erro-campo: #b03a22;
+  --cor-aviso-fundo: #e4efe7;
+  --cor-aviso-texto: #1c4b36;
+
+  // Três raios com papéis: controle (pílula), campo e superfície que agrupa.
+  --raio-pilula: 999px;
+  --raio-campo: 10px;
+  --raio: 14px;
+
+  // Nível 1 é o repouso sobre o papel; o 2 só para o que flutua de fato —
+  // o diálogo e o popup do mapa.
+  --sombra-1: 0 1px 2px rgb(31 36 34 / 0.04), 0 1px 1px rgb(31 36 34 / 0.03);
+  --sombra-2: 0 12px 32px rgb(31 36 34 / 0.16), 0 2px 6px rgb(31 36 34 / 0.08);
+
+  // Tipografia
+  --fonte: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --fonte-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --fonte-titulo: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+}
+
 body {
   margin: 0;
-  background: #f4f4f4;
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--cor-fundo);
+  font-family: var(--fonte);
   font-size: 14px;
-  color: #333;
+  line-height: 1.5;
+  color: var(--cor-texto);
+  -webkit-font-smoothing: antialiased;
+}
+
+// Seguro de desligar: nada é comunicado só pela transição.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+// --- Títulos ----------------------------------------------------------------
+
+h2 {
+  margin: 0 0 20px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+// --- Botões -----------------------------------------------------------------
+
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  // 34px de altura mínima: alvo confortável sem inflar a densidade da tabela.
+  min-height: 34px;
+  padding: 6px 16px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-pilula);
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.botao:hover {
+  background: var(--cor-superficie-marcada);
+  border-color: var(--cor-texto-apagado);
+}
+
+.botao--primario {
+  background: var(--cor-marca);
+  border-color: var(--cor-marca);
+  color: var(--cor-marca-contraste);
+}
+
+.botao--primario:hover {
+  background: #0d2f2a;
+  border-color: #0d2f2a;
+}
+
+.botao--pequeno {
+  min-height: 28px;
+  padding: 3px 12px;
+  font-size: 12px;
+}
+
+// Em tela de toque o botão pequeno da tabela cresce. Por `pointer: coarse`, e
+// não por largura: o que define o tamanho do alvo é o dedo, não a viewport —
+// um tablet largo com toque precisa disso tanto quanto um celular.
+@media (pointer: coarse) {
+  .botao--pequeno {
+    min-height: 40px;
+    padding: 6px 16px;
+  }
+}
+
+.botao--perigo {
+  color: var(--cor-erro-texto);
+}
+
+.botao--perigo:hover {
+  background: var(--cor-erro-fundo);
+  border-color: var(--cor-erro-campo);
+}
+
+.botao:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.botao:disabled:hover {
+  background: var(--cor-superficie);
+  border-color: var(--cor-borda);
+}
+
+// --- Campos de formulário ---------------------------------------------------
+//
+// Por tipo, e não por classe: todo formulário do sistema herda a mesma
+// aparência sem precisar declarar classe nenhuma.
+
+input[type="text"],
+input[type="search"],
+input[type="number"],
+select {
+  padding: 7px 10px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-campo);
+  background: var(--cor-superficie);
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+// Coordenada e área são lidas dígito a dígito, não como palavra.
+input[type="number"] {
+  font-family: var(--fonte-mono);
+  font-size: 13px;
+}
+
+// Tom fraco, e não apagado: mesmo sendo auxiliar, continua sendo texto.
+input::placeholder {
+  color: var(--cor-texto-fraco);
+}
+
+input:hover,
+select:hover {
+  border-color: var(--cor-texto-apagado);
+}
+
+// Halo em vez de `outline`: acompanha o raio do campo.
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--cor-marca);
+  box-shadow: 0 0 0 3px var(--cor-marca-halo);
+}
+
+// Onde o halo não cabe, o anel clássico — na cor da marca, nunca o azul do navegador.
+.botao:focus-visible,
+a:focus-visible,
+button:focus-visible,
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--cor-marca);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--cor-marca);
+  width: 16px;
+  height: 16px;
+}
+
+// --- Cabeçalho de página ----------------------------------------------------
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.cabecalho h2 {
+  margin: 0;
+}
+
+// --- Trilha de navegação ----------------------------------------------------
+
+// Flex com gap, e não espaço em branco entre os inline: o espaço do HTML
+// colapsa e a trilha lia "Imóveis/Novo", colada na barra.
+.trilha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--cor-texto-fraco);
+}
+
+
+// --- Links ------------------------------------------------------------------
+//
+// Exclui `.botao` e `.menu__item` porque ambos são âncoras com aparência
+// própria; sem a exclusão, o botão primário perderia o texto claro.
+
+a:not(.botao):not(.menu__item) {
+  color: var(--cor-marca);
+  text-decoration-color: var(--cor-borda);
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  transition: text-decoration-color 0.15s ease;
+}
+
+a:not(.botao):not(.menu__item):hover {
+  text-decoration-color: currentcolor;
+}
+
+// --- Mensagens de estado ----------------------------------------------------
+
+.estado {
+  padding: 11px 14px;
+  border-radius: var(--raio-campo);
+  background: var(--cor-estado-fundo);
+  color: var(--cor-texto-suave);
+  font-size: 13px;
+}
+
+.estado--erro {
+  background: var(--cor-erro-fundo);
+  color: var(--cor-erro-texto);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.estado--aviso {
+  background: var(--cor-aviso-fundo);
+  color: var(--cor-aviso-texto);
+}
+
+.campo__erro {
+  font-size: 12px;
+  color: var(--cor-erro-campo);
+}
+
+// --- Filtros ----------------------------------------------------------------
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: var(--raio);
+  background: var(--cor-superficie-suave);
+}
+
+.filtros__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 200px;
+}
+
+.filtros__campo label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+// --- Tabelas ----------------------------------------------------------------
+
+.resumo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+// A moldura vive no contêiner de rolagem, e não na tabela: é ele que recorta os
+// cantos, o que permite a linha ir de ponta a ponta sem estourar o raio.
+.tabela-rolagem {
+  overflow-x: auto;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-1);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+// Só régua horizontal: a grade fechada faz o olho ler célula por célula em vez
+// de varrer a linha.
+table th,
+table td {
+  padding: 10px 14px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--cor-borda-suave);
+}
+
+table th {
+  background: var(--cor-superficie-suave);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+table tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+table tbody tr:hover {
+  background: var(--cor-superficie-suave);
+}
+
+// Largura fixa e alinhado à direita: é o que faz a vírgula de uma linha cair
+// debaixo da vírgula da outra.
+.numero {
+  text-align: right;
+  font-family: var(--fonte-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+// Mantém o alinhamento, mas devolve a família da interface: a largura fixa
+// serve ao dígito, e o rótulo da coluna não é dígito.
+table th.numero {
+  font-family: var(--fonte);
+}
+
+// Mais fraco, não ilegível: `--cor-texto-apagado` daria 2,5:1 e jogaria a linha
+// inteira abaixo do mínimo. A coluna "Ativo" é que carrega a informação.
+.linha--inativa {
+  color: var(--cor-texto-fraco);
+}
+
+.acoes {
+  display: flex;
+  gap: 6px;
+}
+
+// --- Paginação --------------------------------------------------------------
+
+.paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.paginacao__posicao {
+  font-family: var(--fonte-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cor-texto-suave);
+  padding: 0 10px;
+}
+
+// --- Popup do mapa ----------------------------------------------------------
+//
+// Mora aqui, e não no SCSS do componente do mapa, por imposição do
+// encapsulamento: o conteúdo do popup é criado com document.createElement,
+// então não recebe o atributo _ngcontent que o Angular exige para casar estilo
+// de componente. É o mesmo motivo que levou o leaflet.css para o angular.json.
+
+.popup-imovel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  font-family: var(--fonte);
+  font-size: 13px;
+}
+
+.popup-imovel strong {
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+
+.popup-imovel__coordenada {
+  color: var(--cor-texto-fraco);
+  font-family: var(--fonte-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.popup-imovel__inativo {
+  color: var(--cor-texto-fraco);
+}
+
+.popup-imovel .botao {
+  margin-top: 3px;
+}
+
+// O Leaflet traz o próprio balão, com canto e sombra dele. Realinhado ao raio e
+// à elevação daqui para o popup não parecer de outro aplicativo.
+.leaflet-popup-content-wrapper {
+  border-radius: var(--raio) !important;
+  box-shadow: var(--sombra-2) !important;
+  background: var(--cor-superficie) !important;
+  color: var(--cor-texto) !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--cor-superficie) !important;
+  box-shadow: none !important;
+}
+
+.leaflet-container {
+  font-family: var(--fonte) !important;
+}
+
+// Mesmo caso do popup: o controle de zoom vem com canto de 4px e sombra preta
+// a 65%, de outro sistema visual.
+.leaflet-bar {
+  border: 1px solid var(--cor-borda-suave) !important;
+  border-radius: var(--raio-campo) !important;
+  box-shadow: var(--sombra-1) !important;
+  overflow: hidden;
+}
+
+.leaflet-bar a {
+  background: var(--cor-superficie) !important;
+  color: var(--cor-texto-suave) !important;
+  border-bottom-color: var(--cor-borda-suave) !important;
+  font-weight: 400 !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.leaflet-bar a:hover {
+  background: var(--cor-superficie-marcada) !important;
+  color: var(--cor-texto) !important;
+}
+
+// Quem recorta agora é o overflow do contêiner.
+.leaflet-bar a:first-child,
+.leaflet-bar a:last-child {
+  border-radius: 0 !important;
+}
+
+.leaflet-bar a.leaflet-disabled {
+  background: var(--cor-superficie-suave) !important;
+  color: var(--cor-texto-apagado) !important;
+}
+
+.leaflet-control-attribution {
+  background: rgb(253 252 250 / 0.86) !important;
+  color: var(--cor-texto-fraco) !important;
+  font-size: 10px !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--cor-texto-suave) !important;
+}
+
+// --- Acessibilidade ---------------------------------------------------------
+
+/** Visível apenas para leitores de tela. */
+.oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }

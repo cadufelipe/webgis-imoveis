@@ -1,3 +1,9 @@
+-- Carga inicial de exemplo.
+--
+-- Sem guarda de idempotencia: o Flyway registra esta migration na tabela
+-- flyway_schema_history e nunca a reexecuta. "Rodar uma vez" passou a ser
+-- garantia da ferramenta, nao responsabilidade do script.
+
 INSERT INTO imovel
     (proprietario, municipio, uf, bairro, rua, numero, latitude, longitude, area_m2, ativo, criado_em, atualizado_em)
 VALUES

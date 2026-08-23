@@ -1,0 +1,17 @@
+// Só o que é específico desta página; o restante vem de src/styles.scss.
+
+.renomear {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+// Altura casada com a do .botao--pequeno ao lado, que sem isto fica dois
+// pixels desalinhado do campo.
+.renomear input {
+  flex: 1 1 260px;
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: 13px;
+}

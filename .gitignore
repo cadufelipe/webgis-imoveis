@@ -1,0 +1,19 @@
+# Regras que valem para o monorepo inteiro.
+# Cada módulo tem o seu .gitignore para o que é específico dele
+# (backend/target, frontend/node_modules, etc.).
+
+# IDEs e editores
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.sublime-workspace
+
+# Ferramentas de agente / assistentes de código
+.claude/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+desktop.ini

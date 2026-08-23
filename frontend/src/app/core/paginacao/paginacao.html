@@ -1,0 +1,17 @@
+@if (totalDePaginas() > 1) {
+  <nav class="paginacao" aria-label="Navegação entre páginas">
+    <button type="button" class="botao" [disabled]="primeira()"
+            (click)="irPara.emit(0)" aria-label="Primeira página">« Primeira</button>
+    <button type="button" class="botao" [disabled]="primeira()"
+            (click)="irPara.emit(pagina() - 1)" aria-label="Página anterior">‹ Anterior</button>
+
+    <span class="paginacao__posicao" aria-live="polite">
+      Página {{ pagina() + 1 }} de {{ totalDePaginas() }}
+    </span>
+
+    <button type="button" class="botao" [disabled]="ultima()"
+            (click)="irPara.emit(pagina() + 1)" aria-label="Próxima página">Próxima ›</button>
+    <button type="button" class="botao" [disabled]="ultima()"
+            (click)="irPara.emit(totalDePaginas() - 1)" aria-label="Última página">Última »</button>
+  </nav>
+}

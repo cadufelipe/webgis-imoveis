@@ -1,0 +1,99 @@
+// Só o layout do formulário. Botões, campos e .campo__erro vêm de src/styles.scss.
+
+// A mesma superfície de papel das outras caixas: sem ela os campos flutuam
+// sobre o fundo e nada delimita onde a tarefa começa e termina.
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 24px;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: var(--raio);
+  background: var(--cor-superficie);
+  box-shadow: var(--sombra-1);
+}
+
+.linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 160px;
+  gap: 5px;
+}
+
+.campo--largo {
+  flex: 3 1 260px;
+}
+
+.campo--curto {
+  flex: 0 0 90px;
+}
+
+// Mesmo tratamento dos rótulos de filtro.
+.campo label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+// Nota auxiliar do campo: mesma escala do erro, sem a carga de cor dele.
+.campo__nota {
+  font-size: 12px;
+  color: var(--cor-texto-fraco);
+}
+
+// Variante que ocupa a coluna inteira, para explicar um par de campos.
+.campo__nota--bloco {
+  align-self: flex-end;
+  padding-bottom: 8px;
+}
+
+.campo__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+// Régua acima das ações, sem precisar de um <hr> no template.
+.acoes {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 18px;
+  border-top: 1px solid var(--cor-borda-suave);
+}
+
+// Agrupa o desenho sem virar mais uma caixa dentro da caixa do formulário:
+// borda só no topo, que separa sem empilhar molduras.
+.desenho {
+  margin: 0;
+  padding: 18px 0 0;
+  border: none;
+  border-top: 1px solid var(--cor-borda-suave);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.desenho__titulo {
+  padding: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+.desenho__nota {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cor-texto-fraco);
+}

@@ -1,7 +1,20 @@
-<div class="topo">
-  <h1>{{ titulo }}</h1>
-</div>
+<header class="topo">
+  <div class="topo__interno">
+    <h1>{{ titulo }}</h1>
 
-<div class="conteudo">
+    <nav class="menu" aria-label="Navegação principal">
+      <a routerLink="/imoveis" routerLinkActive="menu__item--ativo"
+         [routerLinkActiveOptions]="{ exact: true }" class="menu__item">Listagem</a>
+      <a routerLink="/imoveis/novo" routerLinkActive="menu__item--ativo"
+         class="menu__item">Novo imóvel</a>
+      <a routerLink="/imoveis/mapa" routerLinkActive="menu__item--ativo"
+         class="menu__item">Mapa</a>
+      <a routerLink="/proprietarios" routerLinkActive="menu__item--ativo"
+         class="menu__item">Proprietários</a>
+    </nav>
+  </div>
+</header>
+
+<main class="conteudo">
   <router-outlet />
-</div>
+</main>

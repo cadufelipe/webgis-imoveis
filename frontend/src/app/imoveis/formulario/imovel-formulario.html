@@ -1,0 +1,214 @@
+<form class="formulario" [formGroup]="form" (ngSubmit)="aoSubmeter()">
+
+  <div class="linha">
+    <div class="campo campo--curto">
+      <label for="cpfDoProprietario">CPF do proprietário</label>
+      <input id="cpfDoProprietario" type="text" formControlName="cpfDoProprietario"
+             inputmode="numeric" maxlength="14" placeholder="000.000.000-00" autocomplete="off">
+      @if (cpfInvalido()) {
+        <span class="campo__erro" role="alert">CPF inválido.</span>
+      }
+    </div>
+
+    <div class="campo campo--largo">
+      <label for="proprietario">Proprietário *</label>
+      <input id="proprietario" type="text" formControlName="proprietario" autocomplete="off">
+      @if (form.controls.proprietario.touched && form.controls.proprietario.invalid) {
+        <span class="campo__erro" role="alert">
+          @if (form.controls.proprietario.hasError('required')) {
+            Proprietário é obrigatório.
+          } @else {
+            Máximo de 120 caracteres.
+          }
+        </span>
+      }
+    </div>
+  </div>
+
+  <div class="linha">
+    <div class="campo campo--largo">
+      <span class="campo__nota campo__nota--bloco" role="status">
+        @if (proprietarioIdentificado(); as dono) {
+          <!--
+            O nome do campo acima já foi trocado pelo do cadastro. Dizer isso em
+            voz alta evita que a troca pareça o formulário apagando o que a
+            pessoa digitou.
+          -->
+          <strong>Proprietário já cadastrado:</strong> {{ dono.nome }} —
+          {{ dono.quantidadeDeImoveis }}
+          {{ dono.quantidadeDeImoveis === 1 ? 'imóvel' : 'imóveis' }}.
+          O novo imóvel será ligado a ele.
+        } @else {
+          Informe o CPF para reaproveitar um proprietário já cadastrado em vez de
+          criar outro. Sem CPF, quem identifica é o nome.
+        }
+      </span>
+    </div>
+  </div>
+
+  <!--
+    O CEP não é campo do imóvel: não vai no payload nem tem coluna. Fica aqui,
+    antes do endereço, porque é dele que o endereço costuma vir.
+  -->
+  <div class="linha">
+    <div class="campo campo--curto">
+      <label for="cep">CEP</label>
+      <input id="cep" type="text" formControlName="cep" inputmode="numeric"
+             maxlength="9" placeholder="00000-000" autocomplete="postal-code">
+    </div>
+
+    <div class="campo campo--largo">
+      <span class="campo__nota campo__nota--bloco" role="status">
+        @if (buscandoCep()) {
+          Consultando o CEP…
+        } @else if (erroDoCep() !== null) {
+          <span class="campo__erro">{{ erroDoCep() }}</span>
+        } @else if (cepAplicado() !== null) {
+          {{ cepAplicado() }}
+        } @else {
+          Digite o CEP para preencher município, UF, bairro e rua automaticamente.
+        }
+      </span>
+    </div>
+  </div>
+
+  <div class="linha">
+    <div class="campo campo--largo">
+      <label for="municipio">Município *</label>
+      <input id="municipio" type="text" formControlName="municipio" autocomplete="off">
+      @if (form.controls.municipio.touched && form.controls.municipio.invalid) {
+        <span class="campo__erro" role="alert">Município é obrigatório.</span>
+      }
+    </div>
+
+    <div class="campo campo--curto">
+      <label for="uf">UF *</label>
+      <input id="uf" type="text" formControlName="uf" maxlength="2" autocomplete="off">
+      @if (form.controls.uf.touched && form.controls.uf.invalid) {
+        <span class="campo__erro" role="alert">Informe 2 letras.</span>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="bairro">Bairro</label>
+      <input id="bairro" type="text" formControlName="bairro" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="linha">
+    <div class="campo campo--largo">
+      <label for="rua">Rua</label>
+      <input id="rua" type="text" formControlName="rua" autocomplete="off">
+    </div>
+
+    <div class="campo campo--curto">
+      <label for="numero">Número</label>
+      <input id="numero" type="text" formControlName="numero" placeholder="S/N" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="linha">
+    <div class="campo">
+      <label for="latitude">Latitude *</label>
+      <input id="latitude" type="number" step="0.0000001" formControlName="latitude">
+      @if (form.controls.latitude.touched && form.controls.latitude.invalid) {
+        <span class="campo__erro" role="alert">
+          @if (form.controls.latitude.hasError('required')) {
+            Latitude é obrigatória.
+          } @else {
+            Deve estar entre -90 e 90.
+          }
+        </span>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="longitude">Longitude *</label>
+      <input id="longitude" type="number" step="0.0000001" formControlName="longitude">
+      @if (form.controls.longitude.touched && form.controls.longitude.invalid) {
+        <span class="campo__erro" role="alert">
+          @if (form.controls.longitude.hasError('required')) {
+            Longitude é obrigatória.
+          } @else {
+            Deve estar entre -180 e 180.
+          }
+        </span>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="areaM2">Área (m²)</label>
+      <input id="areaM2" type="number" step="0.01" formControlName="areaM2">
+      @if (temPoligono()) {
+        <span class="campo__nota">Calculada pelo contorno desenhado</span>
+      } @else if (form.controls.areaM2.disabled) {
+        <span class="campo__nota">Calculada: largura × comprimento</span>
+      } @else if (form.controls.areaM2.touched && form.controls.areaM2.invalid) {
+        <span class="campo__erro" role="alert">Deve ser maior que zero.</span>
+      }
+    </div>
+  </div>
+
+  <!-- Opcionais e indivisíveis: com as duas, o sistema monta a área real do
+       lote e passa a recusar cadastro que invada outro imóvel. -->
+  <div class="linha">
+    <div class="campo">
+      <label for="largura">Largura (m)</label>
+      <input id="largura" type="number" step="0.01" formControlName="largura">
+      @if (form.controls.largura.touched && form.controls.largura.invalid) {
+        <span class="campo__erro" role="alert">Deve ser maior que zero.</span>
+      }
+    </div>
+
+    <div class="campo">
+      <label for="comprimento">Comprimento (m)</label>
+      <input id="comprimento" type="number" step="0.01" formControlName="comprimento">
+      @if (form.controls.comprimento.touched && form.controls.comprimento.invalid) {
+        <span class="campo__erro" role="alert">Deve ser maior que zero.</span>
+      }
+    </div>
+
+    <div class="campo campo--largo">
+      <span class="campo__nota campo__nota--bloco">
+        @if (temPoligono()) {
+          O contorno desenhado abaixo substitui estas medidas.
+        } @else {
+          Informe as duas para o imóvel ganhar área no mapa. Só uma delas é recusado.
+        }
+      </span>
+    </div>
+  </div>
+
+  <!--
+    O desenho fica fora do FormGroup: não é campo digitável, não tem estado
+    touched e emite o contorno só quando ele fecha — até lá o formulário salva
+    pelo caminho das dimensões, como sempre salvou.
+  -->
+  <fieldset class="desenho">
+    <legend class="desenho__titulo">Contorno do terreno</legend>
+    <p class="desenho__nota">
+      Marque os cantos no mapa para lotes que não são retangulares. Com o
+      contorno fechado, a área e o ponto do imóvel passam a sair dele.
+    </p>
+
+    <app-desenho-do-lote
+      [inicial]="poligonoSalvo()"
+      [centro]="centroDoDesenho()"
+      (alterado)="aoDesenhar($event)" />
+  </fieldset>
+
+  <div class="linha">
+    <label class="campo__checkbox">
+      <input type="checkbox" formControlName="ativo"> Imóvel ativo
+    </label>
+  </div>
+
+  <div class="acoes">
+    <button type="submit" class="botao botao--primario" [disabled]="salvando()">
+      {{ salvando() ? 'Salvando…' : rotuloAcao() }}
+    </button>
+    <button type="button" class="botao" (click)="cancelar.emit()" [disabled]="salvando()">
+      Cancelar
+    </button>
+  </div>
+</form>
