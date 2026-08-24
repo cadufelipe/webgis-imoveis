@@ -56,6 +56,7 @@ public final class ImovelMapper {
 				proprietario.getId(),
 				proprietario.getNome(),
 				proprietario.getCpf(),
+				endereco.getCep(),
 				endereco.getMunicipio(),
 				endereco.getUf(),
 				endereco.getBairro(),
@@ -106,7 +107,7 @@ public final class ImovelMapper {
 	}
 
 	private static Endereco montarEndereco(ImovelRequest req) {
-		return new Endereco(req.municipio(), req.uf(), req.bairro(), req.rua(), req.numero());
+		return new Endereco(req.cep(), req.municipio(), req.uf(), req.bairro(), req.rua(), req.numero());
 	}
 
 	private static Coordenada montarCoordenada(ImovelRequest req) {

@@ -55,6 +55,12 @@ linha da tabela eram **o mesmo objeto**, digitar alterava a listagem ao vivo e
 | 8 | Filtros e paginação (tarefas 2 e 6) | `pagina.model.ts`, `imovel.service.ts`, `lista/` |
 | 9 | Proprietários (tarefas 4 e 5) | `proprietarios/`, `styles.scss` |
 
+> **Esta tabela é da primeira rodada** — as seções 10 a 26 vieram depois, cada
+> uma com o próprio registro. Os caminhos acima são os daquele momento: a divisão
+> por feature virou organização por camada na seção 23, e hoje o formulário mora
+> em `components/imovel-formulario/`, a listagem em `pages/lista-imoveis/`, e
+> assim por diante.
+
 ---
 
 ## 1. Fundação tipada
@@ -1583,8 +1589,8 @@ inteira — o aviso muda de tom:
 > Atenção: o lote desenhado fica a 339 km deste CEP. A localização gravada será
 > a do desenho — refaça o contorno se o imóvel mudou de lugar.
 
-**O CEP não é persistido** — não vai no payload nem tem coluna. É um atalho de
-preenchimento, e a tela diz isso.
+**O CEP não era persistido** — não ia no payload nem tinha coluna, e a tela dizia
+isso. Passou a ser gravado depois; ver a seção 26.
 
 ---
 
@@ -1661,6 +1667,192 @@ primeira passada e só apareceram no `tsc`:
 Verificado depois no navegador, com o backend no ar: as sete rotas carregam, a
 listagem traz os 12 imóveis, o CEP preenche o endereço e o mapa de desenho monta
 com os tiles. Nenhum erro de Angular ou de módulo no console.
+
+---
+
+## 24. Notas auxiliares junto do campo que explicam
+
+As três frases de apoio do formulário de imóvel — a que explica o CPF, a do CEP
+e a do par largura/comprimento — apareciam **encostadas na borda direita do
+formulário**, a meia tela do campo a que se referem. A do CPF ficava alinhada à
+direita de uma linha inteira vazia; quem lia não tinha como saber de qual campo
+ela falava.
+
+A causa é de uma linha só, e vale registrar porque não dá erro nenhum:
+
+```scss
+.campo { flex-direction: column; }   // a coluna do campo
+.campo__nota--bloco { align-self: flex-end; }   // ← pretendia "embaixo"
+```
+
+Num container `column`, o eixo cruzado é o **horizontal**. `align-self: flex-end`
+não desce a nota até a altura da caixa de texto — empurra para a direita. O
+layout não quebra, nada some, e o resultado parece deliberado.
+
+Agora a nota quebra para a linha inteira, alinhada à esquerda, 8 px abaixo da
+caixa que explica — a mesma distância que o `.campo__erro` já usava:
+
+```scss
+.campo__nota--linha {
+  flex: 1 0 100%;
+  margin-top: -6px;   // encurta a calha de 14px da linha para os 8px do padrão
+}
+```
+
+Uma regra só para as três, em vez de cada uma resolvida no seu canto. A do CPF
+deixou de ocupar uma `.linha` própria e passou a ser filha da linha do campo, o
+que também elimina uma div.
+
+### Verificação
+
+Medido no navegador, com a aplicação no ar:
+
+| | Antes | Agora |
+|---|---|---|
+| Início da nota do CPF | x = 356, numa linha própria | **x = 168**, igual ao da caixa do CPF |
+| Início da nota do CEP | x = 356 (coluna ao lado) | **x = 168** |
+| Início da nota de largura | x = 692 (depois de dois campos) | **x = 168** |
+| Distância vertical até o campo | — | **8 px** nas três |
+
+Os erros de validação já estavam certos e não foram tocados: os seis nascem
+alinhados com o campo (mesmo x) e 5 px abaixo dele. Em 375 px de largura as
+colunas empilham, a nota continua alinhada à esquerda e a página não ganha
+rolagem horizontal.
+
+---
+
+## 25. Vincular o documento a quem já existe
+
+A seção 22 prometia uma coisa que o servidor deixou de fazer: *"informe o
+documento — ele será vinculado ao registro que já existe"*. Depois da `V10`
+(back. 25), CPF que o servidor não conhece **cria um proprietário novo**, sempre.
+Se a tela continuasse mandando nome + CPF e esperando o melhor, editar um imóvel
+do seed criaria uma segunda pessoa e transferiria o imóvel para ela.
+
+A promessa não foi removida — passou a ter um gesto. Editando um imóvel de dono
+sem documento, quando o CPF digitado é válido e ainda não é de ninguém, a nota
+mostra as **duas** saídas e um botão para a primeira:
+
+> Este documento ainda não é de ninguém. Se é dessa pessoa, vincule ao cadastro
+> que já existe; salvar sem vincular cria um proprietário novo e transfere o
+> imóvel para ele.
+> `[ Vincular a Maria Aparecida Souza ]`
+
+O botão chama `PATCH /api/proprietarios/{id}/cpf`. Três decisões nele:
+
+| Decisão | Por quê |
+|---|---|
+| Ação própria, e não um efeito do "Salvar" | decidir quem é a pessoa não é editar dados do imóvel, e desfazer é caro. Uma tecla não deve escolher as duas coisas |
+| Antes de salvar, não depois | dando certo, o CPF passa a ter dono, e o salvamento seguinte cai no caminho comum — identifica e liga, sem criar ninguém |
+| As duas saídas ditas por extenso | o desfecho de *não* clicar é justamente o que ninguém espera. Escondê-lo deixaria a tela com um botão que parece opcional |
+
+Estado novo, todo derivado do que já existia: `cpfPronto` (dígitos válidos
+digitados) e o computed `podeVincularCpf`, que é `proprietarioSemCpf() &&
+cpfPronto() !== null && proprietarioIdentificado() === null` — a única situação
+em que a tela tem uma pergunta a fazer. Com o CPF já pertencendo a alguém, não há
+pergunta: a nota diz de quem é e o salvamento transfere o imóvel.
+
+### Um preflight que nunca chegou ao servidor
+
+O primeiro clique no botão respondeu **"Servidor indisponível. Verifique se o
+backend está no ar"** — com o backend no ar e respondendo a tudo por `curl`.
+
+`PATCH` não é método simples: o navegador manda um `OPTIONS` antes, e o
+`CorsConfig` listava `GET, POST, PUT, DELETE`. O preflight foi recusado, a
+requisição real nunca saiu, e o Angular viu `status 0` — indistinguível de
+servidor fora do ar, que é o que a nossa própria `mensagemDeErro` traduz.
+
+Achado **ao clicar**, não ao ler: o `curl` não faz preflight, então os seis casos
+verificados na seção 25 do backend passaram todos. Corrigido acrescentando
+`PATCH` ao `allowedMethods`.
+
+### Verificação
+
+Navegador, com backend e banco reais, editando o imóvel 1 (dona sem documento):
+
+| Caso | Resultado |
+|---|---|
+| CPF válido e sem dono | aparece o botão "Vincular a Maria Aparecida Souza" |
+| Clique no botão | `200`; a nota vira "Proprietário já cadastrado: … — 1 imóvel" |
+| Estado no banco | proprietário **9**, mesmo id, mesmo imóvel, agora com CPF — nenhum registro criado |
+| CPF que já é de outra pessoa | **sem** botão; a nota diz de quem é o documento e que o imóvel será ligado àquele cadastro |
+| Alinhamento | nota, botão e caixa do CPF todos em x = 108; botão de 28 px, o `.botao--pequeno` do sistema |
+
+O `409` ("este CPF já é de outro proprietário") quase não é alcançável pela tela
+— a consulta por CPF acontece antes e desvia para o outro caminho. Ele continua
+tratado porque a janela entre consultar e vincular existe, e porque um erro do
+servidor não pode virar tela quebrada.
+
+### O que isto deixou em aberto
+
+Vincular e **não** salvar deixa a listagem em memória com o imóvel sem CPF até a
+próxima carga: o `PATCH` atualiza o proprietário, não o imóvel que aponta para
+ele. Some ao salvar, que é o passo seguinte natural — mas quem vincular e
+cancelar vê o dado velho.
+
+---
+
+## 26. CEP gravado, e máscara nos dois documentos
+
+Duas mudanças no mesmo formulário, ambas sobre o que a pessoa vê enquanto digita.
+
+### O CEP passa a ir no payload
+
+A seção 21 dizia, com todas as letras, que o CEP não era persistido — era atalho
+de preenchimento e nada mais. Agora ele tem coluna (back. 27), e a tela mudou em
+três pontos:
+
+| Onde | Antes | Agora |
+|---|---|---|
+| `ImovelPayload` | não tinha o campo | `cep`, só com dígitos (`apenasDigitos` no envio) |
+| Carga na edição | `cep: ''` — *"o imóvel não guarda CEP"* | `mascaraDeCep(imovel.cep)`, o valor gravado |
+| Nota do campo | "preenche município, UF, bairro e rua" | acrescenta "Ele é gravado junto com o imóvel" |
+
+O terceiro item é o que impede a mudança de ser invisível: o campo continua
+opcional e continua preenchendo o endereço, então sem uma frase nova nada
+indicaria que agora ele fica.
+
+### Máscara enquanto se digita
+
+`formatarCpf` já existia, mas só formatava documento **completo**, e só era
+chamada ao carregar um imóvel para edição. Quem digitava via `52998224725` puro
+até sair do campo. Entraram duas funções irmãs, `mascaraDeCpf` e `mascaraDeCep`,
+que dão conta de valor pela metade — porque rodam a cada tecla:
+
+```
+5 → 52 → 529 → 529.9 → … → 529.982.247-25
+0 → 01 → 014 → 0145 → 01452 → 01452-0 → 01452-000
+```
+
+Aplicadas no `valueChanges` que o formulário já tinha, com
+`setValue(…, { emitEvent: false })` para não realimentar o próprio fluxo. Elas
+cortam o excedente (11 e 8 dígitos): o `maxlength` do campo conta caracteres
+**formatados**, então sem o corte um texto colado entraria maior que o documento.
+
+**O que isto custa, dito por escrito:** o cursor vai para o fim a cada reescrita.
+Quem digita da esquerda para a direita não percebe; quem volta e corrige um
+dígito no meio, sim. É o preço de formatar no próprio controle em vez de manter
+um espelho só para exibição — e cabe nestes dois campos, curtos e normalmente
+digitados de uma vez. Um `ControlValueAccessor` com controle de seleção resolveria,
+e seria bem mais código para o mesmo resultado em 99% das digitações.
+
+O resto do formulário não precisou saber de nada: quem lê CPF e CEP já
+normalizava para dígitos antes de usar (`apenasDigitosDoCpf`, `apenasDigitos`),
+então a busca por CEP e a identificação por CPF continuam recebendo o que
+esperam.
+
+### Verificação
+
+No navegador, com backend e banco reais:
+
+| Caso | Resultado |
+|---|---|
+| Digitar 11 dígitos no CPF | `5` → `52` → `529` → `529.9` → … → `529.982.247-25` |
+| Digitar além dos 11 | ignorado — o valor para em `529.982.247-25` |
+| Digitar 8 dígitos no CEP | `0` → `01` → … → `01452` → `01452-0` → `01452-000` |
+| Cadastro completo pela tela | imóvel gravado com `cep = 01452000` no banco |
+| Reabrir para editar | campo volta como `01452-000`, e o CPF como `529.982.247-25` |
+| `npm run build` | passa |
 
 ---
 

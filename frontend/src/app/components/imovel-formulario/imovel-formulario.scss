@@ -49,10 +49,32 @@
   color: var(--cor-texto-fraco);
 }
 
-// Variante que ocupa a coluna inteira, para explicar um par de campos.
-.campo__nota--bloco {
-  align-self: flex-end;
-  padding-bottom: 8px;
+// Nota que explica um campo largo demais para a coluna dele, ou o par de campos
+// da linha. Quebra para a linha inteira e nasce alinhada à esquerda — embaixo da
+// caixa que explica, e não numa coluna ao lado dela.
+//
+// Antes era uma coluna com `align-self: flex-end`, e o efeito não era o
+// pretendido: dentro de uma coluna flex o align-self atua no eixo horizontal,
+// então a nota não descia até a altura do campo — atravessava o formulário até a
+// borda direita, longe de tudo que explicava.
+//
+// O -6px encurta a calha de 14px da linha para os 8px que separam um campo do
+// texto auxiliar dele em toda a tela. Sem isso a nota fica equidistante da linha
+// de cima e da de baixo, e volta a não ter dono.
+.campo__nota--linha {
+  flex: 1 0 100%;
+  margin-top: -6px;
+}
+
+// A ação que a nota oferece, e a recusa que o servidor pode dar a ela. Em linha
+// própria: um botão no meio de um parágrafo que quebra em duas linhas nasce em
+// qualquer lugar, e aqui ele é a decisão de quem é o dono do imóvel.
+.campo__nota-acao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 // Cabe o botão e mais nada: sem o `flex: 1` dos outros campos, a coluna não

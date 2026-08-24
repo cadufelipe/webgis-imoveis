@@ -38,3 +38,29 @@ export function apenasDigitos(cep: string): string {
 }
 
 export const TAMANHO_DO_CEP = 8;
+
+/**
+ * Máscara de digitação: 01452000 → 01452-000, e qualquer prefixo dele.
+ *
+ * Funciona com valor incompleto de propósito — ela roda a cada tecla, e não só
+ * quando o campo fica cheio. O que passar de oito dígitos é descartado: o
+ * `maxlength` do campo conta caracteres formatados, então sem este corte um
+ * texto colado poderia entrar mais longo do que o CEP.
+ */
+export function mascaraDeCep(valor: string): string {
+  const digitos = apenasDigitos(valor).slice(0, TAMANHO_DO_CEP);
+
+  if (digitos.length <= 5) {
+    return digitos;
+  }
+
+  return `${digitos.slice(0, 5)}-${digitos.slice(5)}`;
+}
+
+/** 01452000 → 01452-000, para exibir valor já gravado. Traço quando não há. */
+export function formatarCep(cep: string | null): string {
+  if (cep === null || cep.length === 0) {
+    return '—';
+  }
+  return mascaraDeCep(cep);
+}

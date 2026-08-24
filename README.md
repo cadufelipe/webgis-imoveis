@@ -53,11 +53,16 @@ cd backend
 
 Sobe em `http://localhost:8080`.
 
-O schema é gerenciado por **migrations do Flyway**, em
-`src/main/resources/db/migration`. O Hibernate roda em `ddl-auto=validate`: ele
-apenas confere se o schema bate com as entidades, sem alterar nada. A carga
-inicial de 12 imóveis é a migration `V2`, executada uma única vez. O schema está
-na versão **V9**.
+O schema é gerenciado por **Flyway**, em `src/main/resources/db/migration`. Há
+uma migration só — `V1__esquema_do_webgis.sql` —, que cria o schema inteiro e faz
+a carga inicial de 12 imóveis. O Hibernate roda em `ddl-auto=validate`: apenas
+confere se o schema bate com as entidades, sem alterar nada.
+
+> As dez migrations do desenvolvimento foram consolidadas nessa primeira ao fim
+> do trabalho. Elas continuam legíveis em `backend/db/historico/`, fora do
+> classpath do Flyway, porque é a elas que os dois `REFATORACAO.md` se referem ao
+> explicar cada decisão — inclusive a `V4`, que é a migração da tarefa 4 e mostra
+> como os imóveis existentes foram preservados.
 
 > Se o JDK 21 não estiver no `PATH`, aponte o `JAVA_HOME` na chamada:
 > `JAVA_HOME=/caminho/para/jdk-21 ./mvnw spring-boot:run`
@@ -77,7 +82,8 @@ ambiente; sem elas, valem os padrões `postgres`/`postgres` do
 | Campo          | Tipo    | Observação                        |
 |----------------|---------|-----------------------------------|
 | `proprietario` | texto   | nome                              |
-| `cpfDoProprietario` | texto | **obrigatório**, com ou sem pontuação. É **ele** quem identifica a pessoa |
+| `cpfDoProprietario` | texto | **obrigatório**, com ou sem pontuação. É **ele** quem identifica a pessoa — o nome não |
+| `cep`          | texto   | opcional, com ou sem hífen. Guardado só com dígitos |
 | `municipio`    | texto   |                                   |
 | `uf`           | texto   | uma das 27 UFs do Brasil          |
 | `bairro`       | texto   |                                   |
@@ -165,21 +171,28 @@ com mensagem no campo. O município segue texto livre.
 | `GET`  | `/api/proprietarios`       | Lista paginada, com contagem de imóveis | `200` |
 | `GET`  | `/api/proprietarios/{id}`  | Busca por id                       | `200` / `404` |
 | `GET`  | `/api/proprietarios/cpf/{cpf}` | Quem tem este CPF          | `200` / `404` / `400` |
-| `PUT`  | `/api/proprietarios/{id}`  | Renomeia (vale para todos os imóveis dele) | `200` / `404` / `409` |
+| `PUT`  | `/api/proprietarios/{id}`  | Renomeia (vale para todos os imóveis dele) | `200` / `404` |
+| `PATCH`| `/api/proprietarios/{id}/cpf` | Informa o CPF de quem foi cadastrado antes de ele existir | `200` / `400` / `404` / `409` |
 
 Para os imóveis de um proprietário: `GET /api/imoveis?proprietarioId={id}`.
 
 **Identificação pelo CPF.** O `POST` e o `PUT` de imóvel exigem
-`cpfDoProprietario`, e é o documento que identifica a pessoa: CPF já cadastrado
-liga o imóvel àquele proprietário, sem criar outro, mesmo que o nome tenha sido
-digitado de outro jeito — na tela, o nome é preenchido sozinho. Quem já estava
-no cadastro **sem** CPF recebe o documento em vez de virar uma segunda linha.
+`cpfDoProprietario`, e é **só** o documento que identifica a pessoa: CPF já
+cadastrado liga o imóvel àquele proprietário, sem criar outro, mesmo que o nome
+tenha sido digitado de outro jeito — na tela, o nome é preenchido sozinho. CPF
+novo cria um proprietário novo, mesmo que o nome já exista: **dois homônimos com
+documentos diferentes são duas pessoas**, e desde a `V10` o cadastro guarda as
+duas (antes o nome era `UNIQUE`, e o segundo era recusado ou, pior, fundido com
+o primeiro).
 
 Como os 12 proprietários da carga inicial não têm CPF, editar um desses imóveis
-pede o documento — e é assim que o cadastro antigo se completa.
+pede o documento. Informá-lo é um ato explícito, no
+`PATCH /api/proprietarios/{id}/cpf`: o `{id}` é quem afirma "é esta pessoa", em
+vez de o servidor deduzir isso de dois nomes iguais.
 
-O CPF é validado pelos dígitos verificadores. Dois homônimos com CPFs
-diferentes ainda são recusados (`409`), porque a coluna `nome` continua `UNIQUE`.
+O CPF é validado pelos dígitos verificadores, e não se troca por outro — quem já
+tem documento é recusado com `400`; documento que já é de outro proprietário,
+com `409`.
 
 Erros seguem o formato **ProblemDetail (RFC 7807)**; falhas de validação trazem
 uma mensagem por campo em `erros`.
@@ -218,7 +231,8 @@ continua em texto livre — nome de pessoa é conjunto aberto.
 No **formulário de imóvel**, três apoios ao preenchimento:
 
 - **CEP** — completa município, UF, bairro, rua e, quando a base tem, a
-  coordenada da via. Consulta a BrasilAPI direto do navegador. Não é gravado.
+  coordenada da via. Consulta a BrasilAPI direto do navegador, e é **gravado**
+  junto com o imóvel.
 - **CPF** — ao ficar completo e válido, procura quem já tem aquele documento e
   avisa na tela a que proprietário o imóvel vai ficar ligado.
 - **Desenho do lote** — mini-mapa onde cada clique marca um canto do terreno.
@@ -233,8 +247,8 @@ No **formulário de imóvel**, três apoios ao preenchimento:
 As decisões de projeto, na ordem em que foram tomadas e com a justificativa de
 cada uma, estão documentadas em:
 
-- **[backend/REFATORACAO.md](backend/REFATORACAO.md)** — seções 1 a 24
-- **[frontend/REFATORACAO.md](frontend/REFATORACAO.md)** — seções 1 a 23
+- **[backend/REFATORACAO.md](backend/REFATORACAO.md)** — seções 1 a 27
+- **[frontend/REFATORACAO.md](frontend/REFATORACAO.md)** — seções 1 a 26
 
 ### Estrutura
 
@@ -249,12 +263,14 @@ backend/src/main/java/br/com/webgis      frontend/src/app
 └── util/        validation/
 ```
 
-O trabalho aconteceu em cinco rodadas. A primeira resolveu os problemas graves
-do código original e entregou as tarefas 1 a 6. A segunda atacou o que restou de
+O trabalho aconteceu em sete rodadas. A primeira resolveu os problemas graves do
+código original e entregou as tarefas 1 a 6. A segunda atacou o que restou de
 duplicação e de decisões pouco claras — nada de funcionalidade nova, exceto as
 mensagens de confirmação da seção 15. A terceira entregou a tarefa 7, o mapa. A
 quarta, a tarefa 8. A quinta trocou o lote retangular por polígono desenhado à
-mão e acrescentou CEP e CPF.
+mão e acrescentou CEP e CPF. A sexta reorganizou os dois módulos por camada e
+consertou um defeito de identidade que fundia duas pessoas. A sétima consolidou
+as migrations e fechou pontas do formulário.
 
 ### Segunda rodada — o que mudou e por quê
 
@@ -345,7 +361,7 @@ Detalhes em **back. 21 a 23** e **front. 20 a 22**.
 | Lote desenhado no mapa | o contorno deixa de ser um retângulo alinhado aos eixos e passa a ser desenhado vértice a vértice, com lista dos pontos e área ao vivo |
 | `geom` deixa de ser gerada | vira dado de entrada (`V7`), e duas `CHECK` repõem a garantia que a coluna gerada dava de graça: geometria válida e ponto dentro do próprio lote |
 | Ainda sem `hibernate-spatial` | o polígono nunca vira objeto Java — sai como GeoJSON e o `ST_GeomFromGeoJSON` reprojeta na gravação |
-| CEP pela BrasilAPI | preenche município, UF, bairro, rua e a coordenada da via; não é persistido |
+| CEP pela BrasilAPI | preenche município, UF, bairro, rua e a coordenada da via |
 | CPF identifica o proprietário | CPF já cadastrado liga o imóvel àquele registro em vez de criar outro, mesmo com o nome digitado diferente (`V9`) |
 
 Três descobertas, no formato das anteriores:
@@ -371,6 +387,56 @@ A prévia de área do navegador e o valor gravado **não batem**, e o número es
 registrado: 3.852,56 m² na tela contra 3.835,94 m² no PostGIS, 0,43%. A fórmula
 do excesso esférico trata a Terra como esfera; o `ST_Area` projeta o elipsoide.
 Por isso a tela chama aquilo de "área do desenho".
+
+### Sexta rodada — organização por camada e identidade pelo CPF
+
+Detalhes em **back. 24 e 25** e **front. 23 a 25**.
+
+| Tema | Em uma linha |
+|---|---|
+| Organização por camada | os dois módulos deixam de ser divididos por feature: `config/controller/dto/…` no backend, `models/pages/components/services/…` no frontend |
+| CPF obrigatório | `POST` e `PUT` de imóvel passam a exigir o documento; o caminho "sem CPF" sai do `ResolverProprietario` |
+| Nome deixa de identificar (`V10`) | o `UNIQUE(nome)` cai, e dois homônimos com CPFs diferentes passam a ser dois cadastros |
+| Vincular documento é ato explícito | `PATCH /api/proprietarios/{id}/cpf`, com o formulário oferecendo a vinculação em vez de o servidor deduzi-la |
+| Notas junto do campo | as frases de apoio do formulário apareciam encostadas na borda direita, a meia tela do campo que explicam |
+
+Três descobertas, no formato das anteriores:
+
+- **O cadastro fundia duas pessoas em silêncio** (back. 25). Existindo um
+  proprietário sem CPF, cadastrar outro com o **mesmo nome** e um documento
+  carimbava o CPF no registro antigo — e os imóveis das duas ficavam sob um só. A
+  causa não era o `if` que fundia: era o `UNIQUE(nome)` da `V4`, que não deixava o
+  segundo registro existir. A `V9` tinha movido a identidade para o CPF e deixado
+  a restrição antiga para trás.
+- **Um preflight que nunca chegou ao servidor** (front. 25). O primeiro clique no
+  botão de vincular respondeu "servidor indisponível", com o backend no ar:
+  `PATCH` não é método simples, e o `CorsConfig` listava só `GET, POST, PUT,
+  DELETE`. Os seis casos verificados por `curl` passaram todos — `curl` não faz
+  preflight.
+- **`align-self` num container `column`** (front. 24). A nota que devia descer
+  até a altura da caixa de texto ia para a **direita**: em coluna, o eixo cruzado
+  é o horizontal. Não quebra layout, não dá erro, e o resultado parece
+  deliberado.
+
+### Sétima rodada — projeto como se fosse novo
+
+Detalhes em **back. 26 e 27** e **front. 26**.
+
+| Tema | Em uma linha |
+|---|---|
+| Uma migration só | as dez viram `V1__esquema_do_webgis.sql`; as originais ficam legíveis em `backend/db/historico/`, fora do classpath |
+| CEP gravado | deixa de ser só atalho de preenchimento e ganha coluna, dentro do value object `Endereco` |
+| Máscara ao digitar | CPF e CEP passam a aparecer pontuados a cada tecla, e não só quando já vêm gravados |
+
+Duas descobertas:
+
+- **Mover a migration não basta** (back. 26). A primeira subida falhou com "Found
+  more than one migration with version 1": a cópia antiga continuava em
+  `target/classes/db/migration`, e é do classpath que o Flyway lê.
+- **A consolidação apaga a prova da tarefa 4** (back. 26). O arquivo único já
+  nasce com a tabela normalizada, então não demonstra nada sobre migrar dado
+  existente sem perdê-lo — que é o que a tarefa 4 pedia. É por isso que as dez
+  originais foram guardadas em vez de apagadas.
 
 ### Tecnologias acrescentadas
 

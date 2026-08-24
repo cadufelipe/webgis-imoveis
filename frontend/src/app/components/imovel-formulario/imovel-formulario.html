@@ -29,40 +29,65 @@
         </span>
       }
     </div>
-  </div>
 
-  <div class="linha">
-    <div class="campo campo--largo">
-      <span class="campo__nota campo__nota--bloco" role="status">
-        @if (proprietarioIdentificado(); as dono) {
+    <!--
+      Ocupa a linha inteira e nasce alinhada com a caixa do CPF, logo abaixo
+      dela: a frase explica esse campo, e lida do outro lado do formulário ela
+      virava um aviso solto, sem dono aparente.
+    -->
+    <span class="campo__nota campo__nota--linha" role="status">
+      @if (proprietarioIdentificado(); as dono) {
+        <!--
+          O nome do campo acima já foi trocado pelo do cadastro. Dizer isso em
+          voz alta evita que a troca pareça o formulário apagando o que a
+          pessoa digitou.
+        -->
+        <strong>Proprietário já cadastrado:</strong> {{ dono.nome }} —
+        {{ dono.quantidadeDeImoveis }}
+        {{ dono.quantidadeDeImoveis === 1 ? 'imóvel' : 'imóveis' }}.
+        O imóvel será ligado a esse cadastro.
+      } @else if (proprietarioSemCpf()) {
+        <!--
+          Sem esta frase, exigir CPF ao editar um imóvel antigo parece defeito:
+          o campo está vazio, o cadastro está correto, e nada explica por quê.
+        -->
+        <strong>{{ imovel()?.proprietario }}</strong> está no cadastro desde antes
+        de o CPF ser exigido.
+
+        @if (podeVincularCpf()) {
           <!--
-            O nome do campo acima já foi trocado pelo do cadastro. Dizer isso em
-            voz alta evita que a troca pareça o formulário apagando o que a
-            pessoa digitou.
+            As duas saídas ditas por extenso, e não só a que o botão faz: o que
+            acontece ao salvar sem clicar é justamente o desfecho que ninguém
+            espera — proprietário novo, imóvel transferido para ele.
           -->
-          <strong>Proprietário já cadastrado:</strong> {{ dono.nome }} —
-          {{ dono.quantidadeDeImoveis }}
-          {{ dono.quantidadeDeImoveis === 1 ? 'imóvel' : 'imóveis' }}.
-          O novo imóvel será ligado a ele.
-        } @else if (proprietarioSemCpf()) {
-          <!--
-            Sem esta frase, exigir CPF ao editar um imóvel antigo parece defeito:
-            o campo está vazio, o cadastro está correto, e nada explica por quê.
-          -->
-          <strong>{{ imovel()?.proprietario }}</strong> foi cadastrado antes de o
-          CPF ser exigido. Informe o documento para concluir a edição — ele será
-          vinculado ao registro que já existe, sem criar outro proprietário.
+          Este documento ainda não é de ninguém. Se é dessa pessoa, vincule ao
+          cadastro que já existe; salvar sem vincular cria um proprietário novo e
+          transfere o imóvel para ele.
+
+          <span class="campo__nota-acao">
+            <button type="button" class="botao botao--pequeno"
+                    [disabled]="vinculandoCpf()"
+                    (click)="vincularCpfAoProprietario()">
+              {{ vinculandoCpf() ? 'Vinculando…' : 'Vincular a ' + (imovel()?.proprietario ?? '') }}
+            </button>
+
+            @if (erroDoVinculo(); as erro) {
+              <span class="campo__erro" role="alert">{{ erro }}</span>
+            }
+          </span>
         } @else {
-          O CPF identifica o proprietário: se ele já estiver cadastrado, o nome é
-          preenchido sozinho e o imóvel é ligado ao registro existente.
+          Informe o documento para concluir a edição.
         }
-      </span>
-    </div>
+      } @else {
+        O CPF identifica o proprietário: se ele já estiver cadastrado, o nome é
+        preenchido sozinho e o imóvel é ligado ao registro existente.
+      }
+    </span>
   </div>
 
   <!--
-    O CEP não é campo do imóvel: não vai no payload nem tem coluna. Fica aqui,
-    antes do endereço, porque é dele que o endereço costuma vir.
+    Fica antes do endereço porque é dele que o endereço costuma vir — e desde
+    que ganhou coluna própria, é gravado junto com ele.
   -->
   <div class="linha">
     <div class="campo campo--curto">
@@ -71,19 +96,18 @@
              maxlength="9" placeholder="00000-000" autocomplete="postal-code">
     </div>
 
-    <div class="campo campo--largo">
-      <span class="campo__nota campo__nota--bloco" role="status">
-        @if (buscandoCep()) {
-          Consultando o CEP…
-        } @else if (erroDoCep() !== null) {
-          <span class="campo__erro">{{ erroDoCep() }}</span>
-        } @else if (cepAplicado() !== null) {
-          {{ cepAplicado() }}
-        } @else {
-          Digite o CEP para preencher município, UF, bairro e rua automaticamente.
-        }
-      </span>
-    </div>
+    <span class="campo__nota campo__nota--linha" role="status">
+      @if (buscandoCep()) {
+        Consultando o CEP…
+      } @else if (erroDoCep() !== null) {
+        <span class="campo__erro">{{ erroDoCep() }}</span>
+      } @else if (cepAplicado() !== null) {
+        {{ cepAplicado() }}
+      } @else {
+        Digite o CEP para preencher município, UF, bairro e rua automaticamente.
+        Ele é gravado junto com o imóvel.
+      }
+    </span>
   </div>
 
   <div class="linha">
@@ -219,15 +243,13 @@
       }
     </div>
 
-    <div class="campo campo--largo">
-      <span class="campo__nota campo__nota--bloco">
-        @if (temPoligono()) {
-          O contorno desenhado abaixo substitui estas medidas.
-        } @else {
-          Informe as duas para o imóvel ganhar área no mapa. Só uma delas é recusado.
-        }
-      </span>
-    </div>
+    <span class="campo__nota campo__nota--linha">
+      @if (temPoligono()) {
+        O contorno desenhado abaixo substitui estas medidas.
+      } @else {
+        Informe as duas para o imóvel ganhar área no mapa. Só uma delas é recusado.
+      }
+    </span>
   </div>
 
   <!--

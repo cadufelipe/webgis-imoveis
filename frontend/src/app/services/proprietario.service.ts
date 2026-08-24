@@ -5,7 +5,7 @@ import { Observable, catchError, of, tap, throwError } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { StorePaginado } from './store-paginado';
 import { TAMANHO_DE_PAGINA_PADRAO } from '../models/pagina.model';
-import { Proprietario, ProprietarioPayload } from '../models/proprietario.model';
+import { CpfPayload, Proprietario, ProprietarioPayload } from '../models/proprietario.model';
 
 /**
  * Store separado do de imóveis: as duas telas têm ciclos de vida independentes,
@@ -39,6 +39,20 @@ export class ProprietarioService extends StorePaginado<Proprietario> {
    */
   renomear(id: number, payload: ProprietarioPayload): Observable<Proprietario> {
     return this.http.put<Proprietario>(`${this.url}/${id}`, payload).pipe(
+      tap(atualizado => this.substituirNaPagina(id, atualizado)),
+    );
+  }
+
+  /**
+   * Dá documento a um proprietário que ainda não tem.
+   *
+   * `PATCH` no proprietário, e não um campo a mais no salvamento do imóvel: o
+   * id na rota é a afirmação de que o documento é **daquela** pessoa. Salvar o
+   * imóvel com um CPF novo faz outra coisa — cria um proprietário e transfere o
+   * imóvel para ele —, e as duas precisam continuar distinguíveis.
+   */
+  identificar(id: number, payload: CpfPayload): Observable<Proprietario> {
+    return this.http.patch<Proprietario>(`${this.url}/${id}/cpf`, payload).pipe(
       tap(atualizado => this.substituirNaPagina(id, atualizado)),
     );
   }

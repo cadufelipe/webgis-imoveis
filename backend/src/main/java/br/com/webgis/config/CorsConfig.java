@@ -20,9 +20,12 @@ public class CorsConfig implements WebMvcConfigurer {
 
 	@Override
 	public void addCorsMappings(CorsRegistry registry) {
+		// PATCH entrou junto com o PATCH /api/proprietarios/{id}/cpf. Sem ele o
+		// preflight e' recusado e o navegador nem chega a mandar a requisicao —
+		// a tela ve status 0, indistinguivel de servidor fora do ar.
 		registry.addMapping("/api/**")
 				.allowedOrigins(origensPermitidas)
-				.allowedMethods("GET", "POST", "PUT", "DELETE")
+				.allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
 				.allowedHeaders("*")
 				.maxAge(3600);
 	}

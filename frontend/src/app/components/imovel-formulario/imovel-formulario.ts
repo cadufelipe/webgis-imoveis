@@ -5,10 +5,11 @@ import { finalize } from 'rxjs';
 
 import { Imovel, ImovelPayload } from '../../models/imovel.model';
 import { CepService } from '../../services/cep.service';
-import { EnderecoDoCep, TAMANHO_DO_CEP, apenasDigitos } from '../../models/cep.model';
+import { EnderecoDoCep, TAMANHO_DO_CEP, apenasDigitos, mascaraDeCep } from '../../models/cep.model';
 import { ProprietarioService } from '../../services/proprietario.service';
 import { Proprietario } from '../../models/proprietario.model';
-import { TAMANHO_DO_CPF, apenasDigitosDoCpf, cpfValidator, cpfValido, formatarCpf } from '../../shared/cpf';
+import { TAMANHO_DO_CPF, apenasDigitosDoCpf, cpfValidator, cpfValido, formatarCpf, mascaraDeCpf } from '../../shared/cpf';
+import { mensagemDeErro } from '../../shared/mensagem-de-erro';
 import { DesenhoDoLote } from '../desenho-do-lote/desenho-do-lote';
 import { Vertice, verticesDoGeoJson } from '../../models/lote.model';
 import { distanciaEmMetros, distanciaPorExtenso } from '../../shared/distancia';
@@ -65,9 +66,11 @@ export class ImovelFormulario {
       validators: [Validators.required, cpfValidator],
     }),
     /**
-     * Atalho de preenchimento, e não dado do imóvel: o CEP **não** vai no
-     * payload nem existe como coluna. Ele serve para trazer município, UF,
-     * bairro, rua e — quando a base do CEP tem — a coordenada da via.
+     * Dado do imóvel **e** atalho de preenchimento: além de trazer município,
+     * UF, bairro, rua e — quando a base do CEP tem — a coordenada da via, ele é
+     * gravado junto com o endereço.
+     *
+     * Opcional: imóvel rural e lote sem logradouro não têm CEP.
      */
     cep: new FormControl('', { nonNullable: true }),
     municipio: new FormControl('', {
@@ -201,6 +204,30 @@ export class ImovelFormulario {
     return imovel !== null && imovel.cpfDoProprietario === null;
   });
 
+  /**
+   * CPF digitado, completo e válido — o candidato a documento de alguém.
+   *
+   * Separado do controle do formulário porque o template precisa dele como
+   * signal, e um `form.controls…valid` lido no template não reavalia sozinho.
+   */
+  protected readonly cpfPronto = signal<string | null>(null);
+
+  /**
+   * Editando imóvel de dono sem documento, com um CPF válido que **não** é de
+   * ninguém ainda. É a única situação em que a tela tem uma pergunta a fazer:
+   * este documento é do dono atual, ou de outra pessoa?
+   *
+   * Sem essa pergunta o salvamento responderia sempre "outra pessoa" — o
+   * servidor cria um proprietário novo para todo CPF que não conhece.
+   */
+  protected readonly podeVincularCpf = computed(() =>
+    this.proprietarioSemCpf()
+    && this.cpfPronto() !== null
+    && this.proprietarioIdentificado() === null);
+
+  protected readonly vinculandoCpf = signal(false);
+  protected readonly erroDoVinculo = signal<string | null>(null);
+
   private ultimoCpfBuscado: string | null = null;
 
   constructor() {
@@ -215,9 +242,7 @@ export class ImovelFormulario {
         proprietario: imovel.proprietario,
         cpfDoProprietario: imovel.cpfDoProprietario === null
           ? '' : formatarCpf(imovel.cpfDoProprietario),
-        // O imóvel não guarda CEP: na edição o campo nasce vazio, e continua
-        // servindo para repreencher o endereço se o usuário quiser.
-        cep: '',
+        cep: imovel.cep === null ? '' : mascaraDeCep(imovel.cep),
         municipio: imovel.municipio,
         uf: imovel.uf,
         bairro: imovel.bairro ?? '',
@@ -238,6 +263,7 @@ export class ImovelFormulario {
     this.form.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe(() => {
+        this.aplicarMascaras();
         this.sincronizarArea();
         this.acompanharCoordenada();
         this.consultarCepQuandoCompleto();
@@ -259,6 +285,33 @@ export class ImovelFormulario {
   }
 
   /**
+   * Reescreve CPF e CEP já pontuados, a cada tecla.
+   *
+   * No próprio controle, e não num espelho só para exibição: o que a pessoa vê
+   * é o que o formulário tem, e quem lê esses campos já normaliza para dígitos
+   * antes de usar. `emitEvent: false` para não realimentar o `valueChanges` que
+   * chamou isto.
+   *
+   * **O cursor vai para o fim a cada reescrita.** Quem digita da esquerda para a
+   * direita não percebe; quem volta e edita no meio do campo, sim. É o preço de
+   * formatar no controle, e cabe aqui porque os dois campos são curtos e
+   * costumam ser digitados de uma vez.
+   */
+  private aplicarMascaras(): void {
+    this.formatarNoControle(this.form.controls.cpfDoProprietario, mascaraDeCpf);
+    this.formatarNoControle(this.form.controls.cep, mascaraDeCep);
+  }
+
+  /** Só reescreve quando muda: setValue igual ao valor atual moveria o cursor à toa. */
+  private formatarNoControle(controle: FormControl<string>, mascara: (valor: string) => string): void {
+    const formatado = mascara(controle.value);
+
+    if (formatado !== controle.value) {
+      controle.setValue(formatado, { emitEvent: false });
+    }
+  }
+
+  /**
    * Procura quem já tem o CPF digitado, assim que ele fica completo e válido.
    *
    * Achando alguém, o nome do formulário passa a ser o **do cadastro**, e não o
@@ -274,6 +327,8 @@ export class ImovelFormulario {
     // Documento incompleto ou inválido não vai à rede: a resposta já se sabe.
     if (digitos.length !== TAMANHO_DO_CPF || !cpfValido(digitos)) {
       this.ultimoCpfBuscado = null;
+      this.cpfPronto.set(null);
+      this.erroDoVinculo.set(null);
       this.proprietarioIdentificado.set(null);
       return;
     }
@@ -283,6 +338,10 @@ export class ImovelFormulario {
     }
 
     this.ultimoCpfBuscado = digitos;
+    this.cpfPronto.set(digitos);
+
+    // O erro é sobre o documento anterior: trocar o CPF apaga a queixa junto.
+    this.erroDoVinculo.set(null);
 
     this.proprietarioService.buscarPorCpf(digitos)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -297,6 +356,43 @@ export class ImovelFormulario {
         // Falha de rede aqui não trava o cadastro: o servidor refaz a
         // identificação ao salvar, e é a decisão dele que vale.
         error: () => this.proprietarioIdentificado.set(null),
+      });
+  }
+
+  /**
+   * Diz ao servidor que o CPF digitado é do proprietário **deste** imóvel.
+   *
+   * Um `PATCH` no proprietário, antes e à parte do salvamento: é uma decisão
+   * sobre quem é a pessoa, não sobre os dados do imóvel, e desfazê-la depois não
+   * é trivial. Deixá-la acontecer junto do "Salvar" faria uma tecla escolher
+   * duas coisas ao mesmo tempo.
+   *
+   * Dando certo, o CPF passa a ter dono e a tela cai no caminho normal: o mesmo
+   * `proprietarioIdentificado` que a consulta preenche, e o salvamento seguinte
+   * liga o imóvel a ele por identificação, sem criar ninguém.
+   */
+  protected vincularCpfAoProprietario(): void {
+    const imovel = this.imovel();
+    const cpf = this.cpfPronto();
+
+    if (imovel === null || cpf === null || this.vinculandoCpf()) {
+      return;
+    }
+
+    this.vinculandoCpf.set(true);
+    this.erroDoVinculo.set(null);
+
+    this.proprietarioService.identificar(imovel.proprietarioId, { cpf })
+      .pipe(takeUntilDestroyed(this.destroyRef), finalize(() => this.vinculandoCpf.set(false)))
+      .subscribe({
+        next: proprietario => {
+          this.proprietarioIdentificado.set(proprietario);
+          this.form.controls.proprietario.setValue(proprietario.nome, { emitEvent: false });
+        },
+        // 409 quando o documento já é de outra pessoa, 400 quando este
+        // proprietário já tinha um. Os dois são resposta, não falha de sistema:
+        // a frase do backend fica na nota, e o formulário continua utilizável.
+        error: erro => this.erroDoVinculo.set(mensagemDeErro(erro)),
       });
   }
 
@@ -594,6 +690,8 @@ export class ImovelFormulario {
     this.salvar.emit({
       proprietario: valores.proprietario.trim(),
       cpfDoProprietario: this.opcional(valores.cpfDoProprietario),
+      // Só os dígitos: a pontuação é da tela, e a coluna guarda sem ela.
+      cep: this.opcional(apenasDigitos(valores.cep)),
       municipio: valores.municipio.trim(),
       uf: valores.uf.trim().toUpperCase(),
       bairro: this.opcional(valores.bairro),

@@ -32,7 +32,13 @@ public class Proprietario {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(nullable = false, length = 120, unique = true)
+	/**
+	 * Como a pessoa e chamada — nao e identidade.
+	 *
+	 * Sem UNIQUE desde a V10: dois homonimos com CPFs diferentes sao duas
+	 * pessoas, e o cadastro precisa conseguir guardar as duas.
+	 */
+	@Column(nullable = false, length = 120)
 	private String nome;
 
 	/**

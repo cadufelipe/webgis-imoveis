@@ -15,6 +15,8 @@ public record ImovelResponse(
 		String proprietario,
 		/** So digitos, ou nulo para proprietario cadastrado antes da V9. */
 		String cpfDoProprietario,
+		/** So digitos, ou nulo. A mascara com hifen e' decisao de tela. */
+		String cep,
 		String municipio,
 		String uf,
 		String bairro,

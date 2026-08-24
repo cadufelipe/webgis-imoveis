@@ -10,6 +10,8 @@ export interface Imovel {
   proprietario: string;
   /** CPF de quem é o dono, só com dígitos. Null para cadastro antigo. */
   cpfDoProprietario: string | null;
+  /** CEP do imóvel, só com dígitos. Null para quem foi cadastrado sem informar. */
+  cep: string | null;
   municipio: string;
   uf: string;
   bairro: string | null;
@@ -46,6 +48,13 @@ export interface ImovelPayload {
    * mesmo que o nome tenha sido digitado de outro jeito.
    */
   cpfDoProprietario: string | null;
+  /**
+   * CEP com ou sem hífen, ou null. O servidor guarda só os dígitos.
+   *
+   * Deixou de ser apenas atalho de preenchimento: agora é dado do imóvel, com
+   * coluna própria — por isso vai no payload.
+   */
+  cep: string | null;
   municipio: string;
   uf: string;
   bairro: string | null;

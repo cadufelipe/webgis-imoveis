@@ -5,6 +5,11 @@ justificativa de cada decisão.
 
 **Stack:** Java 21 · Spring Boot 3.5.16 · Spring Data JPA · Flyway 11.7.2 · PostgreSQL 17
 
+> **Sobre as migrations citadas aqui.** As dez (`V1` a `V10`) foram consolidadas
+> em `V1__esquema_do_webgis.sql` ao fim do trabalho — ver seção 26. Elas seguem
+> legíveis em `backend/db/historico/`, fora do classpath do Flyway: as referências
+> a `V4`, `V6`, `V9` e companhia abaixo apontam para lá.
+
 ---
 
 ## Sumário do diagnóstico
@@ -47,6 +52,12 @@ também os sintomas (índices mágicos, coleções cruas, `id` como `String`).
 | 12 | `ImovelFiltro`, `PaginaResponse`, `ImovelSpecs` | filtros e paginação (tarefas 2 e 6) |
 | 13 | `V3__busca_por_texto_sem_acento.sql` | busca sem acento + índices GIN de trigrama |
 | 14 | `V4` + pacote `proprietario` | proprietário como entidade (tarefas 4 e 5) |
+
+> **Esta tabela é da primeira rodada** — as seções 15 a 27 vieram depois, cada
+> uma com o próprio registro. Os caminhos acima são os daquele momento: o pacote
+> por feature virou organização por camada na seção 24 (`web/CorsConfig` hoje é
+> `config/CorsConfig`), e as migrations `V1` a `V4` foram consolidadas na seção
+> 26 — estão em `backend/db/historico/`.
 
 ---
 
@@ -634,6 +645,10 @@ Um overload de um argumento resolve, e a chamada passa a dizer o que faz.
 ---
 
 ### A corrida do `ResolverProprietario` — e a correção que estava errada
+
+> **O código desta seção é o de então.** A corrida continua sendo fechada pelo
+> `ON CONFLICT`, mas pelo **CPF** e não pelo nome — a seção 25 conta por que o
+> nome nunca deveria ter sido o critério, e o `porNome` daqui já não existe.
 
 `porNome` fazia consulta-depois-insert:
 
@@ -1276,9 +1291,13 @@ de receber imóveis novos sem que alguém informe o documento.
 4. nada disso                  → cria com nome + CPF
 ```
 
-O passo 1 é o ponto da mudança, e o **passo 2 é o que evita a duplicata
-silenciosa**: cadastrar um imóvel para um proprietário do seed com CPF completa
+O passo 1 é o ponto da mudança, e o passo 2 foi escrito para evitar a duplicata
+silenciosa: cadastrar um imóvel para um proprietário do seed com CPF completaria
 o registro dele em vez de criar um segundo.
+
+> **Os passos 2 e 3 saíram na seção 25.** O passo 2 não distingue "mesma pessoa,
+> faltava o documento" de "outra pessoa, mesmo nome" — as duas chegam idênticas
+> na requisição —, e fundia as duas. O que resta hoje são os passos 1 e 4.
 
 O nome digitado não entrar na decisão é deliberado. Deixá-lo vencer permitiria
 que um erro de digitação criasse um cadastro paralelo para a mesma pessoa —
@@ -1301,8 +1320,8 @@ pergunta ao `Cpf`. Um `@Pattern` de 11 dígitos aceitaria "00000000000".
 |---|---|
 | CPF novo | Cria o proprietário |
 | Mesmo CPF, nome digitado diferente | **Mesmo proprietário**; a resposta traz o nome do cadastro |
-| Nome do seed sem CPF + CPF informado | Vincula ao registro existente — não duplica |
-| Nome já usado + CPF diferente | 409 "Já existe um proprietário com o nome…" |
+| Nome do seed sem CPF + CPF informado | Vincula ao registro existente — não duplica *(revisto na 25: passou a criar registro novo; vincular virou `PATCH` explícito)* |
+| Nome já usado + CPF diferente | 409 "Já existe um proprietário com o nome…" *(revisto na 25: passou a ser `201`, são duas pessoas)* |
 | Verificador errado, ou 11 dígitos iguais | 400 com erro no campo `cpfDoProprietario` |
 | Sem CPF, ou CPF em branco | 400 "CPF do proprietário é obrigatório" |
 
@@ -1311,19 +1330,19 @@ pergunta ao `Cpf`. Um `@Pattern` de 11 dígitos aceitaria "00000000000".
 Tornar o CPF obrigatório tem uma consequência que aparece na primeira edição:
 **os 12 imóveis do seed não podem mais ser salvos sem que se informe um CPF**.
 Não é efeito colateral indesejado — é o mecanismo pelo qual o cadastro antigo se
-completa, já que o passo 2 vincula o documento ao registro que já existe em vez
-de criar outro. Verificado: editar o imóvel 1 informando um CPF deu o documento
-à "Maria Aparecida Souza" do seed, que seguiu com o mesmo id e o mesmo imóvel.
+completa. Verificado: editar o imóvel 1 informando um CPF deu o documento à
+"Maria Aparecida Souza" do seed, que seguiu com o mesmo id e o mesmo imóvel.
+*O caminho continua existindo depois da seção 25, mas por uma rota própria em vez
+de por inferência a partir do nome.*
 
 O caminho "sem CPF" saiu do `ResolverProprietario`, junto com o `porNome` que já
 era código morto — nunca chamado desde que o `resolver` passou a existir.
 
 ### O que isto deixou em aberto
 
-A coluna `nome` continua `UNIQUE`, então **dois homônimos com CPFs diferentes
-são recusados**. O erro é explicado em vez de virar violação de constraint, mas
-a limitação existe — removê-la exige decidir como o caminho sem CPF passaria a
-resolver a ambiguidade.
+~~A coluna `nome` continua `UNIQUE`, então **dois homônimos com CPFs diferentes
+são recusados**.~~ **Fechado na seção 25** — e não era só uma limitação de
+cadastro: era o que forçava a fusão silenciosa descrita lá.
 
 E `GET /api/proprietarios/cpf/{cpf}` responde quem é o dono de um documento sem
 qualquer autenticação. Neste desafio não há camada de auth; num sistema real,
@@ -1391,6 +1410,205 @@ caminho afetado foi exercitado por HTTP.
 | `POST` com CPF e polígono | validation + service + util + mapper | `201`, área 8.901,35 m² |
 | `POST` com CPF inválido, e com UF inválida | validators próprios | `400` nos dois |
 | `POST` sobre lote existente | `VerificarSobreposicao` | `409` com o id do conflitante |
+
+---
+
+## 25. O nome deixa de identificar o proprietário (V10)
+
+**Defeito relatado:** existindo um proprietário sem CPF, cadastrar outra pessoa
+com o **mesmo nome** e um CPF não criava a segunda — carimbava o documento no
+registro antigo. Duas pessoas viravam uma, e com elas os imóveis de ambas.
+
+### Onde estava
+
+No passo 2 da seção 23. Ele recebe nome e CPF e precisa responder "é a mesma
+pessoa?", mas as duas situações chegam **idênticas** na requisição:
+
+| Situação | O que chega | O que deveria acontecer |
+|---|---|---|
+| Maria do seed, sem documento | `"Maria Aparecida Souza"` + CPF | vincular ao registro dela |
+| Outra Maria, homônima | `"Maria Aparecida Souza"` + CPF | criar registro novo |
+
+Não há informação na requisição que separe as duas. O servidor escolhia sempre a
+primeira leitura.
+
+### Por que ele não podia simplesmente criar a segunda
+
+Porque não havia onde. `uk_proprietario_nome UNIQUE (nome)`, da V4. Com a
+restrição no lugar, o passo 2 tinha só dois desfechos possíveis — fundir, ou
+recusar um cadastro legítimo com 409 — e nenhum dos dois é o certo.
+
+E aqui está a raiz, que não é o `if`: **a V4 fez o nome ser a identidade** porque
+era a única coluna que existia, e naquele momento "mesmo nome" era mesmo a
+definição de "mesma pessoa". A **V9 mudou a identidade para o CPF** e deixou o
+`UNIQUE` para trás. O schema seguiu afirmando uma coisa que o resto do sistema
+já não acreditava, e o código se contorcia para obedecer aos dois.
+
+### A correção, em duas camadas
+
+**`V10` derruba o `UNIQUE(nome)`.** O CPF passa a ser a única identidade, e o
+`ResolverProprietario` fica com dois ramos, não quatro:
+
+```
+acha pelo CPF?  → usa esse; o nome digitado não decide
+não acha        → cria registro novo, mesmo que o nome já exista
+```
+
+Caíram junto o `findByNomeIgnoreCase`, o `existsByNomeIgnoreCaseAndIdNot` do
+`RenomearProprietario` e a `NomeDeProprietarioEmUsoException` inteira, que ficou
+sem quem a lançasse. O B-tree de ordenação não veio da constraint — o
+`idx_proprietario_nome` foi criado à parte na V4 —, então a listagem continua
+sustentada.
+
+**A corrida passou a ser decidida pelo documento.** O `inserirSeAusente` tinha
+`on conflict on constraint uk_proprietario_nome`, e virou `uk_proprietario_cpf`;
+a releitura seguinte passou de `findByNomeIgnoreCase` para `findByCpf`. Não é só
+consequência da constraint removida: **estava errado antes**. Duas requisições
+simultâneas com o mesmo CPF e nomes escritos diferente não colidiam pelo nome, e
+a releitura por nome podia devolver o registro de outra pessoa.
+
+**Completar um cadastro antigo virou ato explícito:**
+`PATCH /api/proprietarios/{id}/cpf`, no `IdentificarProprietario`. A diferença
+está no `{id}`: quem chama afirma *"é esta pessoa"*, partindo do registro que tem
+na mão, em vez de o servidor deduzir da igualdade de duas strings. O domínio
+continua recusando trocar um CPF por outro (`identificarPor`), e o caso "este
+documento é de outra pessoa" agora responde 409 com o id de quem o tem — coisa
+que a violação de constraint não sabe dizer.
+
+`PATCH` e não `PUT` porque o corpo não descreve o proprietário inteiro; rota
+própria e não um campo no `PUT` porque as duas operações têm consequências
+diferentes: renomear corrige a grafia, identificar decide **de quem são os
+imóveis**.
+
+### Verificação
+
+Aplicação no ar, banco real, cada caminho por HTTP:
+
+| Caso | Resultado |
+|---|---|
+| `POST` imóvel, nome já existente sem CPF + CPF novo | `201`, `proprietarioId` **novo** — antes fundia |
+| `GET /api/proprietarios?nome=Ana Beatriz` | dois registros homônimos, distinguidos pelo CPF |
+| `PATCH /{id}/cpf` em proprietário do seed | `200`, documento gravado, mesmo id e mesmo imóvel |
+| `PATCH /{id}/cpf` com CPF de outra pessoa | `409` + `idDoProprietarioComOCpf` |
+| `PATCH /{id}/cpf` em quem já tem CPF | `400` "Este proprietário já tem CPF cadastrado" |
+| `PATCH /{id}/cpf` com verificador errado | `400` com erro no campo `cpf` |
+| `PUT /{id}` renomeando para nome já existente | `200` — antes `409` |
+
+O `CorsConfig` precisou de uma linha por causa da rota nova: `PATCH` não é método
+simples, o navegador manda um `OPTIONS` antes, e o `allowedMethods` listava só
+`GET, POST, PUT, DELETE`. Nenhum dos casos acima pegou isso — `curl` não faz
+preflight. Quem pegou foi o primeiro clique na tela (front. 25).
+
+### O que isto deixou em aberto
+
+**A fusão que já aconteceu não se desfaz sozinha.** Quem rodou a versão anterior
+tem registros com o CPF de uma pessoa e os imóveis de duas, e o `identificarPor`
+recusa sobrescrever documento de propósito. O conserto é manual e por fora:
+limpar o CPF carimbado errado e recadastrar o imóvel do segundo dono, que agora
+cria a linha separada.
+
+**A listagem passa a poder mostrar dois nomes iguais.** A coluna de CPF já existe
+na tela e é o que os distingue — mas quem estiver sem documento, entre dois
+homônimos, só se distingue pelos imóveis que tem.
+
+---
+
+## 26. Consolidação das migrations
+
+Ao fim do trabalho, as dez migrations viraram uma: `V1__esquema_do_webgis.sql`.
+Quem clonar o projeto hoje encontra um banco novo criado em um passo só, sem os
+dez saltos que o desenvolvimento deu.
+
+O que a consolidação **não** faz é reescrever a história — ela some com o
+mecanismo, não com o registro. As dez originais ficaram em
+`backend/db/historico/`, fora de `src/main/resources`, porque:
+
+- É a elas que este documento se refere ao explicar cada decisão. A `V6` é onde
+  `geom` era coluna gerada; a `V7` é onde deixou de ser, e o motivo só existe em
+  contraste com a `V6`.
+- A **`V4` é o entregável da tarefa 4**: "a base já tem imóveis cadastrados com o
+  proprietário em texto, e a migração não pode perdê-los". O arquivo consolidado
+  já nasce com a tabela normalizada, então ele não demonstra nada sobre migrar
+  dado existente — a `V4` demonstra, com o `SET NOT NULL` no fim como rede de
+  segurança.
+
+### Como foi verificado que o consolidado é fiel
+
+Não por leitura. O schema anterior foi despejado com `pg_dump --schema-only`, o
+banco foi derrubado (`DROP SCHEMA public CASCADE`) e recriado do zero pela
+migration única, e os dois despejos foram comparados linha a linha:
+
+| | Resultado |
+|---|---|
+| `diff` dos dois schemas normalizados | **uma única diferença**, deliberada: o comentário da coluna `cpf` perdeu a frase "Nulo só para os anteriores a V9", que citava um arquivo que deixou de existir |
+| `ddl-auto=validate` na subida | passou — é a segunda prova de que schema e entidades continuam batendo |
+| `flyway_schema_history` | uma linha, `1 - esquema do webgis` |
+| Carga inicial | 12 imóveis, 12 proprietários, nenhum com CPF — igual ao que `V2` + `V4` produziam |
+| API sobre o banco novo | listagem, busca sem acento (`?nome=mar%C3%ADa` acha "Maria"), `GET /localidades/ufs` e `POST` com CPF e dimensões (`201`, polígono gravado) |
+
+### Uma armadilha no caminho
+
+A primeira subida falhou com **"Found more than one migration with version 1"**.
+Mover o arquivo em `src/` não remove a cópia que já estava em
+`target/classes/db/migration` — o Flyway lê do classpath, e lá continuavam as dez
+antigas ao lado da nova. `./mvnw clean` resolve, e vale saber: o mesmo vale para
+qualquer migration renomeada.
+
+### O que isto deixou em aberto
+
+Um banco que **já** rodou as dez migrations não aceita a consolidada: o
+`flyway_schema_history` dele tem dez linhas e nenhuma corresponde ao novo `V1`.
+Para o desafio isso é irrelevante — todo mundo parte de um banco novo —, mas num
+sistema com ambiente de produção a consolidação exigiria `flyway.baselineVersion`
+ou um `repair`. Aqui a escolha foi recriar o banco local, que é o cenário real.
+
+---
+
+## 27. O CEP vira dado do imóvel
+
+Até aqui o CEP era só atalho de preenchimento: chegava da BrasilAPI, espalhava
+município, UF, bairro e rua pelos campos e **sumia**. Quem abrisse o imóvel
+depois não tinha como saber de que CEP aquele endereço veio.
+
+Agora ele tem coluna. Três decisões:
+
+**Dentro do `Endereco`, não solto na entidade.** O CEP é parte do endereço —
+guardá-lo como campo avulso de `Imovel` separaria dado do mesmo assunto em dois
+lugares, e o value object existe exatamente para manter esse conjunto junto. O
+construtor passou a receber seis argumentos em vez de cinco, e o CEP é o
+primeiro: é a ordem em que se preenche um endereço.
+
+**Só dígitos, como o CPF.** `"01452-000"` e `"01452000"` são o mesmo endereço, e
+guardar as duas grafias faria consultas por CEP acharem metade das linhas. A
+normalização vive no `Endereco` (e não só no DTO) porque a entidade também é
+construída por caminhos que não passam pela borda — carga, teste, código futuro.
+A `CHECK ck_imovel_cep_digitos` fecha o resto.
+
+**Opcional.** Imóvel rural e lote sem logradouro não têm CEP; exigi-lo impediria
+o cadastro de existir. O `@Pattern` do `ImovelRequest` aceita vazio de propósito
+— campo em branco é "não informado", e quem transforma isso em nulo é o
+`Endereco`.
+
+A coluna entrou na `V1__esquema_do_webgis.sql`, e não numa `V2`. É defensável só
+porque nada foi entregue ainda: o banco local é recriado do zero, e a alternativa
+seria estrear a série de migrations com um remendo de uma coluna. Num sistema com
+ambiente de produção a resposta seria a oposta — migration aplicada não se edita,
+o Flyway recusa a subida pelo checksum.
+
+### Verificação
+
+| Caso | Resultado |
+|---|---|
+| `POST` com `"cep": "01452-000"` | `201`, gravado como `01452000` |
+| `GET /api/imoveis/{id}` | devolve `"cep": "01452000"` |
+| `PUT` com `"cep": ""` | grava nulo — campo em branco é "não informado" |
+| `POST` com `"cep": "123"` | `400`, erro no campo `cep`: "CEP deve ter 8 dígitos" |
+| Pela tela, cadastro completo | imóvel gravado com o CEP; reabrir para editar traz `01452-000` no campo |
+| `ddl-auto=validate` | passou — coluna e entidade batem |
+
+O seed continua sem CEP nos 12 imóveis: inventar oito dígitos plausíveis para
+endereços reais seria inventar dado, e a coluna é opcional justamente para
+suportar isso.
 
 ---
 

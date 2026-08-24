@@ -1,9 +1,11 @@
 package br.com.webgis.controller;
 
+import br.com.webgis.dto.CpfRequest;
 import br.com.webgis.dto.PaginaResponse;
 import br.com.webgis.dto.ProprietarioRequest;
 import br.com.webgis.dto.ProprietarioResponse;
 import br.com.webgis.service.ConsultarProprietarios;
+import br.com.webgis.service.IdentificarProprietario;
 import br.com.webgis.service.RenomearProprietario;
 
 import jakarta.validation.Valid;
@@ -11,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,11 +27,14 @@ public class ProprietarioController {
 
 	private final ConsultarProprietarios consultarProprietarios;
 	private final RenomearProprietario renomearProprietario;
+	private final IdentificarProprietario identificarProprietario;
 
 	public ProprietarioController(ConsultarProprietarios consultarProprietarios,
-								  RenomearProprietario renomearProprietario) {
+								  RenomearProprietario renomearProprietario,
+								  IdentificarProprietario identificarProprietario) {
 		this.consultarProprietarios = consultarProprietarios;
 		this.renomearProprietario = renomearProprietario;
+		this.identificarProprietario = identificarProprietario;
 	}
 
 	@GetMapping
@@ -62,5 +68,19 @@ public class ProprietarioController {
 	public ProprietarioResponse renomear(@PathVariable Long id,
 										 @Valid @RequestBody ProprietarioRequest req) {
 		return renomearProprietario.executar(id, req);
+	}
+
+	/**
+	 * Informa o documento de quem foi cadastrado antes de o CPF existir.
+	 *
+	 * PATCH, e nao PUT: altera um campo de um recurso que continua o mesmo, e o
+	 * corpo nao descreve o proprietario inteiro. Rota propria em vez de um campo
+	 * no PUT porque as duas operacoes tem consequencias diferentes — renomear
+	 * corrige a grafia, identificar decide de quem sao os imoveis.
+	 */
+	@PatchMapping("/{id}/cpf")
+	public ProprietarioResponse identificar(@PathVariable Long id,
+											@Valid @RequestBody CpfRequest req) {
+		return identificarProprietario.executar(id, req);
 	}
 }

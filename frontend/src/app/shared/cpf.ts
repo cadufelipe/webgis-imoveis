@@ -47,6 +47,30 @@ export function formatarCpf(cpf: string | null): string {
 }
 
 /**
+ * Máscara de digitação: 52998224725 → 529.982.247-25, e qualquer prefixo dele.
+ *
+ * Diferente de `formatarCpf`, que só formata documento completo e existe para
+ * exibir: esta roda a cada tecla, então precisa dar conta de valor pela metade.
+ */
+export function mascaraDeCpf(valor: string): string {
+  const digitos = apenasDigitosDoCpf(valor).slice(0, TAMANHO_DO_CPF);
+
+  let formatado = digitos.slice(0, 3);
+
+  if (digitos.length > 3) {
+    formatado += `.${digitos.slice(3, 6)}`;
+  }
+  if (digitos.length > 6) {
+    formatado += `.${digitos.slice(6, 9)}`;
+  }
+  if (digitos.length > 9) {
+    formatado += `-${digitos.slice(9)}`;
+  }
+
+  return formatado;
+}
+
+/**
  * Confere os dois dígitos verificadores, e não só o tamanho.
  *
  * Os 11 dígitos repetidos são recusados à parte porque eles **passam** na

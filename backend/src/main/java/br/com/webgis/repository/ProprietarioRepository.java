@@ -14,23 +14,31 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
+/**
+ * Nao ha consulta por nome aqui, e a ausencia e' deliberada: desde a V10 o nome
+ * nao identifica ninguem, entao procurar por ele para decidir "e' a mesma
+ * pessoa?" nao e' mais uma pergunta respondivel. Quem identifica e' o CPF.
+ *
+ * O nome ainda e' consultado, mas so como texto de busca — no like da listagem.
+ */
 public interface ProprietarioRepository extends JpaRepository<Proprietario, Long> {
-
-	Optional<Proprietario> findByNomeIgnoreCase(String nome);
 
 	/** Recebe o CPF ja normalizado — a coluna guarda so digitos. */
 	Optional<Proprietario> findByCpf(String cpf);
 
 	/**
 	 * Insere o proprietario, ou nao faz nada se outra transacao ja tiver
-	 * inserido o mesmo nome.
+	 * inserido o mesmo CPF.
 	 *
-	 * Fecha a janela entre o findByNomeIgnoreCase e o insert do
-	 * ResolverProprietario. O ON CONFLICT resolve a corrida sem levantar
-	 * excecao, entao a transacao do caso de uso nunca e marcada como
-	 * rollback-only.
+	 * Fecha a janela entre o findByCpf e o insert do ResolverProprietario. O
+	 * ON CONFLICT resolve a corrida sem levantar excecao, entao a transacao do
+	 * caso de uso nunca e marcada como rollback-only.
 	 *
-	 * Native query porque ON CONFLICT nao existe em JPQL; o :nome e parametro
+	 * O conflito e' pelo CPF, e nao pelo nome como era ate a V10: nome repetido
+	 * deixou de ser conflito — dois homonimos com documentos diferentes devem
+	 * mesmo virar dois registros.
+	 *
+	 * Native query porque ON CONFLICT nao existe em JPQL; o :cpf e parametro
 	 * vinculado, nao concatenacao.
 	 *
 	 * now() no lugar do @CreationTimestamp: o insert nao passa pelo Hibernate,
@@ -40,11 +48,9 @@ public interface ProprietarioRepository extends JpaRepository<Proprietario, Long
 	@Query(value = """
 			insert into proprietario (nome, cpf, criado_em, atualizado_em)
 			values (:nome, CAST(:cpf AS varchar), now(), now())
-			on conflict on constraint uk_proprietario_nome do nothing
+			on conflict on constraint uk_proprietario_cpf do nothing
 			""", nativeQuery = true)
 	void inserirSeAusente(@Param("nome") String nome, @Param("cpf") String cpf);
-
-	boolean existsByNomeIgnoreCaseAndIdNot(String nome, Long id);
 
 	/**
 	 * Listagem com a contagem de imoveis de cada um, em uma consulta so —

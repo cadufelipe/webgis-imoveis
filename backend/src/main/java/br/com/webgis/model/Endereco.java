@@ -14,6 +14,17 @@ import lombok.Getter;
 @Getter
 public class Endereco {
 
+	/**
+	 * So digitos, ou nulo. E' o endereco postal de onde o resto veio: guardar
+	 * "01452-000" e "01452000" como valores diferentes faria o mesmo CEP parecer
+	 * dois.
+	 *
+	 * Opcional de proposito — imovel rural e lote sem logradouro nao tem CEP, e
+	 * exigi-lo impediria o cadastro de existir.
+	 */
+	@Column(length = 8)
+	private String cep;
+
 	@Column(nullable = false, length = 120)
 	private String municipio;
 
@@ -34,7 +45,7 @@ public class Endereco {
 	protected Endereco() {
 	}
 
-	public Endereco(String municipio, String uf, String bairro, String rua, String numero) {
+	public Endereco(String cep, String municipio, String uf, String bairro, String rua, String numero) {
 		if (municipio == null || municipio.isBlank()) {
 			throw new DominioInvalidoException("Municipio e obrigatorio");
 		}
@@ -46,11 +57,31 @@ public class Endereco {
 				.orElseThrow(() -> new DominioInvalidoException(
 						"UF deve ser uma das 27 unidades federativas do Brasil"));
 
+		this.cep = normalizarCep(cep);
 		this.municipio = municipio.trim();
 		this.uf = unidade.getSigla();
 		this.bairro = normalizar(bairro);
 		this.rua = normalizar(rua);
 		this.numero = normalizar(numero);
+	}
+
+	/**
+	 * Tira a pontuacao e confere o tamanho. Aqui, e nao so no DTO, porque a
+	 * entidade tambem e' construida por caminhos que nao passam pela borda —
+	 * carga, teste, codigo futuro.
+	 */
+	private static String normalizarCep(String valor) {
+		if (valor == null || valor.isBlank()) {
+			return null;
+		}
+
+		String digitos = valor.replaceAll("\\D", "");
+
+		if (digitos.length() != 8) {
+			throw new DominioInvalidoException("CEP deve ter 8 dígitos");
+		}
+
+		return digitos;
 	}
 
 	private static String normalizar(String valor) {

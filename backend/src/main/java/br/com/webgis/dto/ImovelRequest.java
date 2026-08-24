@@ -12,6 +12,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -42,6 +43,16 @@ public record ImovelRequest(
 		@NotBlank(message = "CPF do proprietário é obrigatório")
 		@CpfValido
 		String cpfDoProprietario,
+
+		/**
+		 * CEP do imovel, com ou sem hifen. Opcional: imovel rural e lote sem
+		 * logradouro nao tem, e exigi-lo impediria o cadastro.
+		 *
+		 * Vazio e' aceito pelo padrao abaixo de proposito — campo em branco e'
+		 * "nao informado", e quem transforma isso em nulo e' o Endereco.
+		 */
+		@Pattern(regexp = "^$|^\\d{5}-?\\d{3}$", message = "CEP deve ter 8 dígitos")
+		String cep,
 
 		@NotBlank(message = "Município é obrigatório")
 		@Size(max = 120, message = "Município deve ter no máximo {max} caracteres")

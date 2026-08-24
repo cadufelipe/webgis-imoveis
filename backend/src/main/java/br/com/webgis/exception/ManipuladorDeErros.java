@@ -72,14 +72,18 @@ public class ManipuladorDeErros extends ResponseEntityExceptionHandler {
 	}
 
 	/**
-	 * Nome de proprietario ja existente: 409 Conflict.
+	 * CPF ja pertencente a outro proprietario: 409 Conflict.
 	 * Nao e 400 — o pedido esta bem formado; o que conflita e o estado atual.
+	 *
+	 * Nome repetido nao cai mais aqui: desde a V10 dois homonimos com CPFs
+	 * diferentes sao dois cadastros validos, e nao um conflito.
 	 */
-	@ExceptionHandler(NomeDeProprietarioEmUsoException.class)
-	public ProblemDetail nomeEmUso(NomeDeProprietarioEmUsoException ex) {
+	@ExceptionHandler(CpfDeProprietarioEmUsoException.class)
+	public ProblemDetail cpfEmUso(CpfDeProprietarioEmUsoException ex) {
 		ProblemDetail problema = ProblemDetail.forStatus(HttpStatus.CONFLICT);
-		problema.setTitle("Nome já utilizado");
+		problema.setTitle("CPF já utilizado");
 		problema.setDetail(ex.getMessage());
+		problema.setProperty("idDoProprietarioComOCpf", ex.getIdDoProprietarioComOCpf());
 		return problema;
 	}
 

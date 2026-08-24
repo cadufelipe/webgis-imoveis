@@ -1,7 +1,6 @@
 package br.com.webgis.service;
 
 import br.com.webgis.exception.DominioInvalidoException;
-import br.com.webgis.exception.NomeDeProprietarioEmUsoException;
 import br.com.webgis.model.Proprietario;
 import br.com.webgis.repository.ProprietarioRepository;
 import br.com.webgis.validation.Cpf;
@@ -15,17 +14,20 @@ import org.springframework.transaction.annotation.Transactional;
  * O contrato recebe nome e CPF, e nao um id, para nao obrigar o cliente a
  * consultar proprietarios antes de cadastrar um imovel.
  *
- * **E' o CPF quem identifica a pessoa.** O nome digitado nao entra na decisao:
- * CPF ja cadastrado reaproveita aquele proprietario, mesmo que o nome tenha
- * vindo escrito diferente. Deixar o nome vencer permitiria que um erro de
- * digitacao criasse um segundo cadastro para a mesma pessoa — exatamente o que
- * o documento existe para evitar. Corrigir a grafia continua sendo trabalho do
- * RenomearProprietario, que altera o nome para todos os imoveis de uma vez.
+ * **E' o CPF quem identifica a pessoa, e so ele.** O nome digitado nao entra na
+ * decisao: CPF ja cadastrado reaproveita aquele proprietario, mesmo que o nome
+ * tenha vindo escrito diferente; CPF novo cria um registro novo, mesmo que o
+ * nome ja exista. Sao dois desfechos, e nao ha um terceiro.
  *
- * O CPF e' **obrigatorio** para cadastrar ou editar imovel. A coluna continua
- * aceitando nulo por causa dos proprietarios anteriores a V9, que ninguem pode
- * documentar retroativamente — mas eles deixam de receber imoveis novos sem que
- * alguem informe o documento, e e' assim que o cadastro antigo se completa.
+ * Ate a V10 havia. O nome era UNIQUE, entao um CPF novo com nome ja existente
+ * nao tinha onde virar registro, e este servico tentava adivinhar entre duas
+ * situacoes que chegam identicas na requisicao — "mesma pessoa, faltava o
+ * documento" e "outra pessoa, mesmo nome". Adivinhava fundindo as duas, e com
+ * elas os imoveis de ambas.
+ *
+ * Completar um cadastro anterior a V9 continua possivel, mas deixou de ser
+ * inferencia: virou ato explicito, no IdentificarProprietario, partindo do
+ * registro que o usuario tem na mao em vez de uma igualdade de string.
  */
 @Service
 public class ResolverProprietario {
@@ -51,39 +53,14 @@ public class ResolverProprietario {
 		}
 
 		return repository.findByCpf(documento)
-				.orElseGet(() -> vincularOuCriar(nome.trim(), documento));
-	}
-
-	/**
-	 * CPF ainda nao cadastrado. Antes de criar um registro novo, procura pelo
-	 * nome: quem ja esta no cadastro **sem** documento — os que vieram da carga
-	 * inicial — recebe este CPF em vez de virar uma segunda linha para a mesma
-	 * pessoa.
-	 *
-	 * Quando o nome ja existe com outro CPF, sao duas pessoas homonimas, e o
-	 * cadastro nao suporta isso hoje: a coluna `nome` e' UNIQUE. O erro sai como
-	 * conflito explicado, e nao como violacao de constraint.
-	 */
-	private Proprietario vincularOuCriar(String nome, String cpf) {
-		Proprietario existente = repository.findByNomeIgnoreCase(nome).orElse(null);
-
-		if (existente == null) {
-			return inserirEBuscar(nome, cpf);
-		}
-
-		if (existente.getCpf() != null) {
-			throw new NomeDeProprietarioEmUsoException(nome);
-		}
-
-		existente.identificarPor(cpf);
-		return existente;
+				.orElseGet(() -> inserirEBuscar(nome.trim(), documento));
 	}
 
 	/**
 	 * Entre a consulta acima e o insert existe uma janela: dois cadastros
-	 * simultaneos com o mesmo nome novo passam ambos pelo findBy e ambos tentam
-	 * inserir. Como a coluna e UNIQUE, um save() comum faria o perdedor da
-	 * corrida receber 500 sem ter feito nada errado.
+	 * simultaneos com o mesmo CPF novo passam ambos pelo findByCpf e ambos
+	 * tentam inserir. Como a coluna e UNIQUE, um save() comum faria o perdedor
+	 * da corrida receber 500 sem ter feito nada errado.
 	 *
 	 * O inserirSeAusente empurra a decisao para o banco, que e quem tem a
 	 * constraint, e sem levantar excecao. A releitura abaixo devolve o registro
@@ -100,8 +77,11 @@ public class ResolverProprietario {
 
 		repository.inserirSeAusente(novo.getNome(), novo.getCpf());
 
-		return repository.findByNomeIgnoreCase(novo.getNome())
+		// Pelo CPF, e nao pelo nome: e o CPF que acabou de ser gravado (ou que a
+		// outra transacao gravou antes), e agora ele pode nao ser mais o unico
+		// registro com este nome.
+		return repository.findByCpf(novo.getCpf())
 				.orElseThrow(() -> new IllegalStateException(
-						"Proprietário \"" + novo.getNome() + "\" não encontrado logo após ser inserido"));
+						"Proprietário com CPF " + novo.getCpf() + " não encontrado logo após ser inserido"));
 	}
 }
