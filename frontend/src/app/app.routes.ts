@@ -13,36 +13,36 @@ export const routes: Routes = [
   {
     path: 'imoveis',
     title: 'Imóveis',
-    loadComponent: () => import('./imoveis/lista/lista-imoveis').then(m => m.ListaImoveis),
+    loadComponent: () => import('./pages/lista-imoveis/lista-imoveis').then(m => m.ListaImoveis),
   },
   {
     path: 'imoveis/novo',
     title: 'Novo imóvel',
-    loadComponent: () => import('./imoveis/novo/novo-imovel').then(m => m.NovoImovel),
+    loadComponent: () => import('./pages/novo-imovel/novo-imovel').then(m => m.NovoImovel),
   },
   {
     path: 'imoveis/mapa',
     title: 'Mapa dos imóveis',
-    loadComponent: () => import('./imoveis/mapa/mapa-imoveis').then(m => m.MapaImoveis),
+    loadComponent: () => import('./pages/mapa-imoveis/mapa-imoveis').then(m => m.MapaImoveis),
   },
   {
     path: 'imoveis/:id/editar',
     title: 'Editar imóvel',
-    loadComponent: () => import('./imoveis/editar/editar-imovel').then(m => m.EditarImovel),
+    loadComponent: () => import('./pages/editar-imovel/editar-imovel').then(m => m.EditarImovel),
   },
   {
     path: 'proprietarios',
     title: 'Proprietários',
-    loadComponent: () => import('./proprietarios/lista/lista-proprietarios').then(m => m.ListaProprietarios),
+    loadComponent: () => import('./pages/lista-proprietarios/lista-proprietarios').then(m => m.ListaProprietarios),
   },
   {
     path: 'proprietarios/:id/imoveis',
     title: 'Imóveis do proprietário',
-    loadComponent: () => import('./proprietarios/imoveis/imoveis-do-proprietario').then(m => m.ImoveisDoProprietario),
+    loadComponent: () => import('./pages/imoveis-do-proprietario/imoveis-do-proprietario').then(m => m.ImoveisDoProprietario),
   },
   {
     path: '**',
     title: 'Página não encontrada',
-    loadComponent: () => import('./nao-encontrado/nao-encontrado').then(m => m.NaoEncontrado),
+    loadComponent: () => import('./pages/nao-encontrado/nao-encontrado').then(m => m.NaoEncontrado),
   },
 ];

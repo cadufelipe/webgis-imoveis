@@ -1,0 +1,124 @@
+<div class="cabecalho">
+  <h2>Imóveis</h2>
+  <a class="botao botao--primario" routerLink="/imoveis/novo">Novo imóvel</a>
+</div>
+
+<form class="filtros" [formGroup]="filtroForm" (ngSubmit)="$event.preventDefault()">
+  <div class="filtros__campo">
+    <label for="filtro-proprietario">Proprietário</label>
+    <input id="filtro-proprietario" type="search" formControlName="proprietario"
+           placeholder="Nome ou sobrenome" autocomplete="off">
+  </div>
+
+  <div class="filtros__campo">
+    <label for="filtro-municipio">Município</label>
+    <input id="filtro-municipio" type="search" formControlName="municipio"
+           placeholder="Nome da cidade" autocomplete="off">
+  </div>
+
+  @if (service.temFiltroAtivo()) {
+    <button type="button" class="botao" (click)="limparFiltros()">Limpar filtros</button>
+  }
+</form>
+
+@if (service.carregando()) {
+  <p class="estado" role="status">Carregando imóveis…</p>
+}
+
+@if (service.erro(); as erro) {
+  <div class="estado estado--erro" role="alert">
+    {{ erro }}
+    <button type="button" class="botao" (click)="recarregar()">Tentar novamente</button>
+  </div>
+}
+
+@if (mensagem(); as m) {
+  <p class="estado"
+     [class.estado--aviso]="m.tom === 'sucesso'"
+     [class.estado--erro]="m.tom === 'erro'"
+     [attr.role]="m.tom === 'erro' ? 'alert' : 'status'">{{ m.texto }}</p>
+}
+
+@if (!service.carregando() && !service.erro()) {
+  @if (linhas().length === 0) {
+    <p class="estado">
+      @if (service.temFiltroAtivo()) {
+        Nenhum imóvel encontrado para esse filtro.
+      } @else {
+        Nenhum imóvel cadastrado ainda.
+      }
+    </p>
+  } @else {
+    <div class="resumo">
+      <span>
+        {{ service.totalDeItens() }} imóvel(is) encontrado(s) —
+        área desta página: {{ service.areaDaPagina() | area }} m²
+      </span>
+
+      <label class="resumo__tamanho">
+        Itens por página
+        <select [value]="service.tamanho()" (change)="alterarTamanho($event)">
+          @for (opcao of tamanhosDisponiveis; track opcao) {
+            <option [value]="opcao">{{ opcao }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="tabela-rolagem">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Proprietário</th>
+            <th scope="col" class="texto-longo">Endereço</th>
+            <th scope="col">Município</th>
+            <th scope="col">UF</th>
+            <th scope="col" class="numero">Latitude</th>
+            <th scope="col" class="numero">Longitude</th>
+            <th scope="col" class="numero">Área (m²)</th>
+            <th scope="col">Ativo</th>
+            <th scope="col"><span class="oculto">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (linha of linhas(); track linha.imovel.id) {
+            <tr [class.linha--inativa]="!linha.imovel.ativo">
+              <td>{{ linha.imovel.proprietario }}</td>
+              <td class="texto-longo">{{ linha.endereco }}</td>
+              <td>{{ linha.imovel.municipio }}</td>
+              <td>{{ linha.imovel.uf }}</td>
+              <td class="numero">{{ linha.imovel.latitude }}</td>
+              <td class="numero">{{ linha.imovel.longitude }}</td>
+              <td class="numero">
+                {{ linha.imovel.areaM2 | area }}
+              </td>
+              <td>{{ linha.imovel.ativo | simNao }}</td>
+              <td class="acoes">
+                <a class="botao botao--pequeno"
+                   [routerLink]="['/imoveis', linha.imovel.id, 'editar']"
+                   [attr.aria-label]="'Editar imóvel de ' + linha.imovel.proprietario">Editar</a>
+                <button type="button" class="botao botao--pequeno botao--perigo"
+                        (click)="pedirExclusao(linha.imovel)"
+                        [disabled]="excluindoId() === linha.imovel.id"
+                        [attr.aria-label]="'Excluir imóvel de ' + linha.imovel.proprietario">
+                  {{ excluindoId() === linha.imovel.id ? '…' : 'Excluir' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-paginacao [pagina]="service.pagina()" [totalDePaginas]="service.totalDePaginas()"
+                   (irPara)="irParaPagina($event)" />
+  }
+}
+
+@if (aExcluir(); as alvo) {
+  <app-confirmacao
+    [pergunta]="'Excluir o imóvel de ' + alvo.proprietario + '?'"
+    rotuloConfirmar="Excluir"
+    (confirmado)="confirmarExclusao(alvo)"
+    (cancelado)="cancelarExclusao()" />
+}

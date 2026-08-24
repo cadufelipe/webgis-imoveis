@@ -1,0 +1,104 @@
+<div class="cabecalho">
+  <h2>Proprietários</h2>
+</div>
+
+<form class="filtros" [formGroup]="filtroForm" (ngSubmit)="$event.preventDefault()">
+  <div class="filtros__campo">
+    <label for="filtro-nome">Nome</label>
+    <input id="filtro-nome" type="search" formControlName="nome"
+           placeholder="Nome ou sobrenome" autocomplete="off">
+  </div>
+
+  @if (service.temFiltroAtivo()) {
+    <button type="button" class="botao" (click)="limparFiltro()">Limpar filtro</button>
+  }
+</form>
+
+@if (service.carregando()) {
+  <p class="estado" role="status">Carregando proprietários…</p>
+}
+
+@if (service.erro(); as erro) {
+  <div class="estado estado--erro" role="alert">
+    {{ erro }}
+    <button type="button" class="botao" (click)="recarregar()">Tentar novamente</button>
+  </div>
+}
+
+@if (aviso(); as texto) {
+  <p class="estado estado--aviso" role="status">{{ texto }}</p>
+}
+
+@if (!service.carregando() && !service.erro()) {
+  @if (service.proprietarios().length === 0) {
+    <p class="estado">
+      @if (service.temFiltroAtivo()) {
+        Nenhum proprietário encontrado para esse filtro.
+      } @else {
+        Nenhum proprietário cadastrado ainda.
+      }
+    </p>
+  } @else {
+    <p class="resumo">{{ service.totalDeItens() }} proprietário(s) encontrado(s)</p>
+
+    <div class="tabela-rolagem">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Nome</th>
+            <th scope="col">CPF</th>
+            <th scope="col" class="numero">Imóveis</th>
+            <th scope="col"><span class="oculto">Ações</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (proprietario of service.proprietarios(); track proprietario.id) {
+            <tr>
+              @if (renomeandoId() === proprietario.id) {
+                <td colspan="4">
+                  <form class="renomear" [formGroup]="renomearForm" (ngSubmit)="confirmarRenomear(proprietario)">
+                    <label class="oculto" [attr.for]="'novo-nome-' + proprietario.id">Novo nome</label>
+                    <input [id]="'novo-nome-' + proprietario.id" type="text"
+                           formControlName="nome" autocomplete="off">
+
+                    <button type="submit" class="botao botao--primario botao--pequeno"
+                            [disabled]="salvando()">
+                      {{ salvando() ? 'Salvando…' : 'Salvar' }}
+                    </button>
+                    <button type="button" class="botao botao--pequeno"
+                            [disabled]="salvando()" (click)="cancelarRenomear()">Cancelar</button>
+
+                    @if (renomearForm.controls.nome.touched && renomearForm.controls.nome.invalid) {
+                      <span class="campo__erro" role="alert">Nome é obrigatório (máx. 120).</span>
+                    }
+                    @if (erroDeRenomear(); as texto) {
+                      <span class="campo__erro" role="alert">{{ texto }}</span>
+                    }
+                  </form>
+                </td>
+              } @else {
+                <td>
+                  <a [routerLink]="['/proprietarios', proprietario.id, 'imoveis']"
+                     [attr.aria-label]="'Ver imóveis de ' + proprietario.nome">{{ proprietario.nome }}</a>
+                </td>
+                <!-- Travessão, e não célula vazia: quem foi cadastrado antes do
+                     CPF existir não tem documento, e isso é diferente de a
+                     coluna ter falhado. -->
+                <td class="codigo">{{ cpfFormatado(proprietario.cpf) }}</td>
+                <td class="numero">{{ proprietario.quantidadeDeImoveis }}</td>
+                <td class="acoes">
+                  <button type="button" class="botao botao--pequeno"
+                          (click)="iniciarRenomear(proprietario)"
+                          [attr.aria-label]="'Renomear ' + proprietario.nome">Renomear</button>
+                </td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <app-paginacao [pagina]="service.pagina()" [totalDePaginas]="service.totalDePaginas()"
+                   (irPara)="irParaPagina($event)" />
+  }
+}

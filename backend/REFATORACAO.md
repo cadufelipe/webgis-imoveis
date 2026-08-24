@@ -543,6 +543,11 @@ Testes de ponta a ponta executados contra a aplicação rodando:
 
 ## 15. `PaginaResponse` fora de `imovel` — o pacote `comum`
 
+> **O pacote `comum` não existe mais.** A seção 24 reorganizou o backend por
+> camada técnica, e `PaginaResponse` passou a viver em `dto`. O problema que
+> esta seção descreve — uma feature importando de outra — continua tendo a mesma
+> resposta, agora por outro caminho.
+
 `PaginaResponse` nasceu junto com a paginação da listagem de imóveis (seção 12) e
 ficou onde foi escrito: `br.com.webgis.imovel.dto`. Quando a tarefa 4 trouxe os
 proprietários, `ProprietarioController` e `ConsultarProprietarios` passaram a
@@ -1259,14 +1264,16 @@ a restrição vale só para quem de fato informou. Guardado apenas em dígitos �
 
 ### A regra de resolução
 
+O CPF é **obrigatório** para cadastrar ou editar imóvel (`@NotBlank` no
+`ImovelRequest`). A coluna continua aceitando nulo por causa dos proprietários
+anteriores à V9 — ninguém pode documentá-los retroativamente —, mas eles deixam
+de receber imóveis novos sem que alguém informe o documento.
+
 ```
-com CPF:
-  1. acha pelo CPF?                        → liga a ele; o nome digitado NÃO decide
-  2. nome existe SEM CPF?                  → atribui o CPF a quem já estava lá
-  3. nome existe COM outro CPF?            → 409, são homônimos
-  4. nada disso                            → cria com nome + CPF
-sem CPF:
-  o nome identifica, como antes
+1. acha pelo CPF?              → liga a ele; o nome digitado NÃO decide
+2. nome existe SEM CPF?        → atribui o CPF a quem já estava lá
+3. nome existe COM outro CPF?  → 409, são homônimos
+4. nada disso                  → cria com nome + CPF
 ```
 
 O passo 1 é o ponto da mudança, e o **passo 2 é o que evita a duplicata
@@ -1297,6 +1304,19 @@ pergunta ao `Cpf`. Um `@Pattern` de 11 dígitos aceitaria "00000000000".
 | Nome do seed sem CPF + CPF informado | Vincula ao registro existente — não duplica |
 | Nome já usado + CPF diferente | 409 "Já existe um proprietário com o nome…" |
 | Verificador errado, ou 11 dígitos iguais | 400 com erro no campo `cpfDoProprietario` |
+| Sem CPF, ou CPF em branco | 400 "CPF do proprietário é obrigatório" |
+
+### O efeito de exigir o documento
+
+Tornar o CPF obrigatório tem uma consequência que aparece na primeira edição:
+**os 12 imóveis do seed não podem mais ser salvos sem que se informe um CPF**.
+Não é efeito colateral indesejado — é o mecanismo pelo qual o cadastro antigo se
+completa, já que o passo 2 vincula o documento ao registro que já existe em vez
+de criar outro. Verificado: editar o imóvel 1 informando um CPF deu o documento
+à "Maria Aparecida Souza" do seed, que seguiu com o mesmo id e o mesmo imóvel.
+
+O caminho "sem CPF" saiu do `ResolverProprietario`, junto com o `porNome` que já
+era código morto — nunca chamado desde que o `resolver` passou a existir.
 
 ### O que isto deixou em aberto
 
@@ -1308,6 +1328,69 @@ resolver a ambiguidade.
 E `GET /api/proprietarios/cpf/{cpf}` responde quem é o dono de um documento sem
 qualquer autenticação. Neste desafio não há camada de auth; num sistema real,
 esse endpoint precisaria de autorização.
+
+---
+
+## 24. Reorganização por camada
+
+O código estava organizado **por feature**: `imovel`, `proprietario`, `comum`,
+`busca`, `web`. Passou a ser organizado **por camada técnica**, a pedido — todos
+os DTOs juntos, todos os serviços juntos, e assim por diante.
+
+```
+br.com.webgis
+├── config/       CorsConfig, SemAcentoFunctionContributor
+├── controller/   Imovel, Localidade, Proprietario
+├── dto/          12 contratos de entrada e saída
+├── exception/    5 exceções de domínio + ManipuladorDeErros
+├── mapper/       ImovelMapper
+├── model/        Imovel, Endereco, Coordenada, Dimensoes, Proprietario, UnidadeFederativa
+├── repository/   ImovelRepository, ProprietarioRepository, ImovelSpecs
+├── service/      os 10 casos de uso
+├── util/         TermoDeBusca, GeoJsonDoLote
+└── validation/   UfValida, CpfValido, Cpf
+```
+
+### O que a mudança custou
+
+**Três classes deixaram de ser package-private.** `ImovelMapper`, `ImovelSpecs` e
+`GeoJsonDoLote` eram fechadas de propósito: só quem estava no mesmo pacote as
+enxergava, e isso impedia que virassem utilitário de uso geral. Separadas de
+quem as usa, tiveram de virar `public`. É uma perda real de encapsulamento, e
+está registrada aqui em vez de passar despercebida.
+
+**O pacote `comum` deixou de existir**, e com ele o `package-info.java` que
+explicava a regra de crescimento (ver seção 15). `PaginaResponse` foi para `dto`
+e `DominioInvalidoException` para `exception`.
+
+**O acoplamento entre features sumiu** — este foi o ganho. `ImovelRequest`
+importava `CpfValido` de `proprietario`, exatamente o que o `package-info` do
+`comum` dizia para evitar. Com validadores em `validation/`, a dependência
+cruzada acabou.
+
+### O que o compilador não pegava
+
+Mover 48 arquivos e recalcular imports é trabalho mecânico, e `BUILD SUCCESS`
+apareceu na primeira tentativa. Mas três referências vivem em **string**, onde o
+compilador não olha:
+
+| Onde | O que quebraria |
+|---|---|
+| `@Query` com `SELECT new br.com.webgis.imovel.dto.ContagemDeLocalidade(...)` | JPQL de projeção — 5 ocorrências, nas consultas de localidade e de proprietário |
+| `META-INF/services/org.hibernate.boot.model.FunctionContributor` | o registro de `sem_acento`; sem ele, toda busca sem acento falha na subida |
+| Comentário da `V1` citando `br.com.webgis.imovel.Imovel` | nada — mas **não pode ser corrigido**: editar migration aplicada muda o checksum e o Flyway recusa a subida |
+
+Por isso a verificação não parou no `mvnw compile`: a aplicação subiu e cada
+caminho afetado foi exercitado por HTTP.
+
+| Caminho | Depende de | Resultado |
+|---|---|---|
+| `GET /api/localidades/ufs` | JPQL `ContagemDeLocalidade` | `200`, 8 UFs com contagem |
+| `GET /api/proprietarios` | JPQL `ProprietarioResponse` | `200` |
+| `GET /api/proprietarios?nome=maría` | função `sem_acento` registrada | `200`, achou "Maria Aparecida Souza" |
+| `POST` com CPF e polígono | validation + service + util + mapper | `201`, área 8.901,35 m² |
+| `POST` com CPF inválido, e com UF inválida | validators próprios | `400` nos dois |
+| `POST` sobre lote existente | `VerificarSobreposicao` | `409` com o id do conflitante |
 
 ---
 

@@ -77,7 +77,7 @@ ambiente; sem elas, valem os padrões `postgres`/`postgres` do
 | Campo          | Tipo    | Observação                        |
 |----------------|---------|-----------------------------------|
 | `proprietario` | texto   | nome                              |
-| `cpfDoProprietario` | texto | opcional, com ou sem pontuação. Quando vem, é **ele** quem identifica a pessoa |
+| `cpfDoProprietario` | texto | **obrigatório**, com ou sem pontuação. É **ele** quem identifica a pessoa |
 | `municipio`    | texto   |                                   |
 | `uf`           | texto   | uma das 27 UFs do Brasil          |
 | `bairro`       | texto   |                                   |
@@ -169,13 +169,16 @@ com mensagem no campo. O município segue texto livre.
 
 Para os imóveis de um proprietário: `GET /api/imoveis?proprietarioId={id}`.
 
-**Identificação pelo CPF.** O `POST` de imóvel aceita `cpfDoProprietario`, e
-quando ele vem é o documento que identifica a pessoa: CPF já cadastrado liga o
-imóvel àquele proprietário, sem criar outro, mesmo que o nome tenha sido digitado
-de outro jeito. Quem já estava no cadastro **sem** CPF recebe o documento em vez
-de virar uma segunda linha. Sem CPF, quem identifica é o nome, como antes.
+**Identificação pelo CPF.** O `POST` e o `PUT` de imóvel exigem
+`cpfDoProprietario`, e é o documento que identifica a pessoa: CPF já cadastrado
+liga o imóvel àquele proprietário, sem criar outro, mesmo que o nome tenha sido
+digitado de outro jeito — na tela, o nome é preenchido sozinho. Quem já estava
+no cadastro **sem** CPF recebe o documento em vez de virar uma segunda linha.
 
-O CPF é opcional e validado pelos dígitos verificadores. Dois homônimos com CPFs
+Como os 12 proprietários da carga inicial não têm CPF, editar um desses imóveis
+pede o documento — e é assim que o cadastro antigo se completa.
+
+O CPF é validado pelos dígitos verificadores. Dois homônimos com CPFs
 diferentes ainda são recusados (`409`), porque a coluna `nome` continua `UNIQUE`.
 
 Erros seguem o formato **ProblemDetail (RFC 7807)**; falhas de validação trazem
@@ -230,8 +233,21 @@ No **formulário de imóvel**, três apoios ao preenchimento:
 As decisões de projeto, na ordem em que foram tomadas e com a justificativa de
 cada uma, estão documentadas em:
 
-- **[backend/REFATORACAO.md](backend/REFATORACAO.md)** — seções 1 a 23
-- **[frontend/REFATORACAO.md](frontend/REFATORACAO.md)** — seções 1 a 22
+- **[backend/REFATORACAO.md](backend/REFATORACAO.md)** — seções 1 a 24
+- **[frontend/REFATORACAO.md](frontend/REFATORACAO.md)** — seções 1 a 23
+
+### Estrutura
+
+Os dois módulos são organizados **por camada técnica**:
+
+```
+backend/src/main/java/br/com/webgis      frontend/src/app
+├── config/      controller/             ├── models/       services/
+├── dto/         exception/              ├── pages/        components/
+├── mapper/      model/                  ├── pipes/        shared/
+├── repository/  service/                └── app.ts, app.routes.ts, app.config.ts
+└── util/        validation/
+```
 
 O trabalho aconteceu em cinco rodadas. A primeira resolveu os problemas graves
 do código original e entregou as tarefas 1 a 6. A segunda atacou o que restou de

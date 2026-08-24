@@ -1,0 +1,142 @@
+// Só o que é específico do desenho; botões, campos e .numero vêm de src/styles.scss.
+
+.lote {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lote__barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lote__instrucao {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cor-texto-fraco);
+}
+
+.lote__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+// Altura explícita não é escolha estética: o Leaflet mede o contêiner na
+// montagem para saber quantos tiles pedir. Com altura automática o elemento
+// nasce com 0px, o mapa calcula que nada é visível e a tela fica em branco,
+// sem erro no console.
+//
+// `overflow: hidden` porque os tiles são retangulares e passariam por cima do
+// canto arredondado.
+.lote__mapa {
+  height: 340px;
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: var(--raio);
+  overflow: hidden;
+  cursor: crosshair;
+}
+
+// Durante a marcação o clique no mapa tem outro efeito. A moldura muda de cor
+// para dizer isso mesmo a quem rolou a página direto até aqui, sem ler a
+// instrução da barra.
+.lote__mapa--marcando {
+  border-color: var(--cor-marca);
+  box-shadow: 0 0 0 3px var(--cor-marca-halo);
+}
+
+.lote__medida {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lote__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lote__campo label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+.lote__area {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--cor-texto-suave);
+}
+
+.lote__area strong {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+// --- Pontos do contorno -----------------------------------------------------
+
+.lote__pontos {
+  border: 1px solid var(--cor-borda-suave);
+  border-radius: var(--raio-campo);
+  background: var(--cor-superficie-suave);
+  overflow: hidden;
+}
+
+.lote__pontos-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cor-borda-suave);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-fraco);
+}
+
+.lote__pontos-contagem {
+  font-size: 12px;
+  letter-spacing: normal;
+}
+
+// Teto de altura porque um lote rural pode ter dezenas de pontos, e a lista não
+// pode empurrar os botões de salvar para fora da tela.
+.lote__lista {
+  max-height: 168px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lote__ponto {
+  display: grid;
+  grid-template-columns: 32px 1fr 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--cor-borda-suave);
+}
+
+.lote__ponto:last-child {
+  border-bottom: none;
+}
+
+.lote__ponto-indice {
+  color: var(--cor-texto-fraco);
+}

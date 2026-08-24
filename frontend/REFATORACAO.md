@@ -1565,10 +1565,23 @@ de sempre, e a BrasilAPI responde com `access-control-allow-origin: *`.
 | Decisão | Por quê |
 |---|---|
 | Busca ao completar 8 dígitos, sem botão | CEP tem tamanho fixo; quem terminou de digitar já disse tudo o que tinha a dizer |
-| Coordenada só preenche se estiver vazia | O CEP localiza a via; o ponto do imóvel é mais específico que isso, e sobrescrevê-lo trocaria um dado melhor por um pior |
+| Coordenada troca junto com o CEP | Corrigido depois: a regra original só preenchia campo vazio, e trocar o CEP deixava o ponto na cidade anterior — os campos passavam a descrever dois lugares. Hoje a coordenada do CEP substitui a que **outro CEP** colocou ali, e preserva a que veio de outra fonte (digitada, carregada na edição, ou derivada de um lote desenhado), avisando na tela |
 | 404 vira frase própria | "CEP não encontrado" é resposta, não falha de sistema — distinta da mensagem de rede indisponível |
 | Cache por CEP | Endereço não muda durante a sessão; voltar ao campo não vale uma segunda ida à rede |
 | O JSON da API morre no serviço | O resto da aplicação fala `EnderecoDoCep`; uma mudança do lado de lá vaza em um arquivo só |
+
+**Com lote desenhado, o CEP não mexe na coordenada** — quem define a
+localização é o contorno, e o servidor reposiciona o ponto para dentro dele de
+qualquer forma. Mas dizer apenas "a coordenada foi mantida" esconderia o caso
+perigoso: trocar o CEP para outra cidade e sair com o endereço de um lugar e o
+lote de outro, sem nada acusando.
+
+Por isso a tela **mede a distância** entre o lote e o CEP informado. Acima de
+2 km — folga suficiente até para zona rural, onde um CEP atende a região
+inteira — o aviso muda de tom:
+
+> Atenção: o lote desenhado fica a 339 km deste CEP. A localização gravada será
+> a do desenho — refaça o contorno se o imóvel mudou de lugar.
 
 **O CEP não é persistido** — não vai no payload nem tem coluna. É um atalho de
 preenchimento, e a tela diz isso.
@@ -1589,6 +1602,16 @@ qualquer forma, e mostrar outro na tela até o momento de salvar seria mentir
 sobre a que proprietário o imóvel vai ficar ligado — mas uma troca silenciosa
 pareceria o formulário apagando o que a pessoa digitou.
 
+O campo é **obrigatório**, e a validação entrou como `Validators.required` mais
+um `cpfValidator` próprio — em vez do signal manual que existia antes, o erro do
+CPF passou a viver no `form.invalid` como o de qualquer outro campo.
+
+Editar um imóvel antigo passou a exigir documento que ninguém tinha informado, o
+que sem explicação parece defeito. O formulário diz o que está acontecendo:
+*"Maria Aparecida Souza foi cadastrado antes de o CPF ser exigido. Informe o
+documento para concluir a edição — ele será vinculado ao registro que já existe,
+sem criar outro proprietário."*
+
 A validação de dígitos verificadores é repetida no navegador (`cpf.ts`). Não é
 redundância inútil: sem ela o usuário só descobre o erro depois de submeter o
 formulário inteiro, e a consulta sairia para a rede sabendo de antemão que não
@@ -1601,6 +1624,43 @@ identificação ao salvar, e é a decisão dele que vale.
 A listagem de proprietários ganhou coluna de CPF, formatada, com travessão para
 quem não tem — célula vazia pareceria falha da coluna, e não ausência de
 documento.
+
+---
+
+## 23. Reorganização por camada
+
+Mesma mudança do backend (ver seção 24 de lá): a estrutura deixou de ser por
+feature e passou a ser por papel.
+
+```
+src/app/
+├── models/       10 contratos — imóvel, filtro, localidade, CEP, lote, mapa, página
+├── services/     8 — os HTTP, os stores e o StorePaginado que os três herdam
+├── pages/        7 telas, uma por rota
+├── components/   4 reutilizáveis — formulário, desenho do lote, confirmação, paginação
+├── pipes/        area.pipe, sim-nao.pipe
+└── shared/       7 apoios sem dono — paleta, debounce, mensagem de erro, CPF, área
+```
+
+O que sobrou na raiz é o que pertence à aplicação inteira: `app.ts`,
+`app.routes.ts`, `app.config.ts` e o shell.
+
+### O que quase passou batido
+
+Recalcular 38 arquivos de import é mecânico, mas duas coisas escaparam da
+primeira passada e só apareceram no `tsc`:
+
+- **Os `import()` dinâmicos das rotas.** O `loadComponent` de cada rota usa
+  `import('./caminho')`, e não `from './caminho'` — a expressão que corrigia os
+  imports não os alcançava. As sete rotas apontavam para pastas que não existiam
+  mais, e o efeito só apareceria ao navegar, não ao carregar a aplicação.
+- **Dois imports corrigidos duas vezes**, que viraram caminhos inventados
+  (`../imoveis/store-paginado`). Foi o que motivou varrer *todos* os imports
+  relativos conferindo se o arquivo existe, em vez de confiar no script.
+
+Verificado depois no navegador, com o backend no ar: as sete rotas carregam, a
+listagem traz os 12 imóveis, o CEP preenche o endereço e o mapa de desenho monta
+com os tiles. Nenhum erro de Angular ou de módulo no console.
 
 ---
 

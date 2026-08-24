@@ -348,6 +348,15 @@ a:not(.botao):not(.menu__item):hover {
 // cantos, o que permite a linha ir de ponta a ponta sem estourar o raio.
 .tabela-rolagem {
   overflow-x: auto;
+  // Bloco contêiner para o que for absoluto dentro da tabela — na prática, o
+  // `.oculto` que dá nome à coluna de ações.
+  //
+  // Sem isto o contêiner dele é o documento: o `clip-path` do `.oculto` esconde
+  // a pintura, mas não tira o elemento do cálculo de área rolável, e a posição
+  // estática dele fica lá na ponta direita da tabela rolada. Um span de 1px
+  // invisível estava esticando a página inteira e ligando a barra de rolagem
+  // lateral do navegador.
+  position: relative;
   border: 1px solid var(--cor-borda-suave);
   border-radius: var(--raio);
   background: var(--cor-superficie);
@@ -403,6 +412,30 @@ table tbody tr:hover {
 // serve ao dígito, e o rótulo da coluna não é dígito.
 table th.numero {
   font-family: var(--fonte);
+}
+
+// Documento, protocolo, identificador: largura fixa como `.numero`, mas
+// alinhado à esquerda. Alinhar CPF à direita desencontra o valor do cabeçalho e
+// sugere uma comparação de grandeza que não existe — 111.444.777-35 não é maior
+// nem menor que 529.982.247-25.
+.codigo {
+  font-family: var(--fonte-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+// A única coluna que quebra linha.
+//
+// Endereço é texto livre e é sempre a coluna mais larga da tabela: em `nowrap`
+// como as demais, ela sozinha empurra o total para além do contêiner e liga a
+// rolagem horizontal — no catálogo de exemplo, 399px de 1218px.
+//
+// Sem largura fixa: com a quebra liberada, o `width: 100%` da tabela distribui a
+// sobra e esta coluna fica com o que existir. O `min-width` é o piso — abaixo
+// dele a rolagem volta a ser a saída, que é melhor que uma coluna estreita
+// demais com uma palavra por linha.
+.texto-longo {
+  white-space: normal;
+  min-width: 220px;
 }
 
 // Mais fraco, não ilegível: `--cor-texto-apagado` daria 2,5:1 e jogaria a linha

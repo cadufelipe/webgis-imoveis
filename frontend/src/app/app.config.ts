@@ -5,7 +5,7 @@ import { TitleStrategy, provideRouter } from '@angular/router';
 import localePt from '@angular/common/locales/pt';
 
 import { routes } from './app.routes';
-import { TituloDaPagina } from './core/titulo-da-pagina';
+import { TituloDaPagina } from './shared/titulo-da-pagina';
 
 // Faz o DecimalPipe formatar 1.234,56 em vez de 1,234.56.
 registerLocaleData(localePt);
